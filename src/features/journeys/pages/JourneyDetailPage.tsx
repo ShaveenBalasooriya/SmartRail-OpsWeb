@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
-import { useCanPublish } from '@/features/publishing/hooks/useCanPublish'
+import ChangeHistory from '@/features/publishing/components/ChangeHistory'
 import PublishActions from '@/features/publishing/components/PublishActions'
+import { useCanPublish } from '@/features/publishing/hooks/useCanPublish'
+import { useJourneyChanges } from '@/features/publishing/hooks/useJourneyChanges'
+import { toChangeViews } from '@/features/publishing/lib/changeHistory'
+import { MOCK_NOTE } from '@/features/publishing/lib/mockNote'
 import { publishedNoticeFrom, publishedNoticeText, type PublishedNotice } from '@/features/publishing/lib/publishedNotice'
 import { useStations } from '@/features/stations/hooks/useStations'
 import { indexStations } from '@/features/stations/lib/stationLookup'
+import { isMocked } from '@/shared/api/mockSwitch'
 import { serviceDateFromParam } from '@/shared/lib/railwayTime'
 import EmptyState from '@/shared/ui/EmptyState'
 import FreshnessNote from '@/shared/ui/FreshnessNote'
@@ -12,17 +17,19 @@ import QueryState from '@/shared/ui/QueryState'
 import JourneyDetailHeader from '../components/JourneyDetailHeader'
 import StopList from '../components/StopList'
 import { useJourney } from '../hooks/useJourney'
+import { applyChanges } from '../lib/applyChanges'
 import { toStopRows } from '../lib/journeyStops'
 import type { JourneyDetail } from '../types'
 import styles from './JourneyDetailPage.module.css'
 
 // The journey's own page (M-02, M-09): the service name is the h1, the facts and the stops follow. Both
-// roles reach it from the board.
+// roles reach it from the board. The stops and the status show the journey after its published changes.
 export default function JourneyDetailPage() {
   const { journeyId = '' } = useParams()
   const [searchParams] = useSearchParams()
   const serviceDate = serviceDateFromParam(searchParams.get('date'))
   const journey = useJourney(journeyId, serviceDate)
+  const changes = useJourneyChanges(journeyId)
   const stations = useStations()
   const stationIndex = useMemo(() => indexStations(stations.data ?? []), [stations.data])
   const canPublish = useCanPublish()
@@ -42,7 +49,8 @@ export default function JourneyDetailPage() {
   const isStale = journey.isError && journey.data !== undefined
 
   // A loaded journey always has a body to show, even with no stops, so the empty case is handled in the
-  // body and not by QueryState. The waiting on stations stops every row from flashing "Unknown station".
+  // body and not by QueryState. The waiting on stations stops every row from flashing "Unknown station", and
+  // the waiting on the changes stops the history from flashing "No changes published".
   return (
     <section className={styles.page} aria-labelledby="journey-detail-title">
       <Link to="/board" className={styles.back}>
@@ -73,10 +81,12 @@ export default function JourneyDetailPage() {
         </p>
       )}
 
+      {isMocked('operations') && <p className={styles.note}>{MOCK_NOTE}</p>}
+
       {stations.isError && <p className={styles.note}>Station names could not be loaded.</p>}
 
       <QueryState<JourneyDetail>
-        isPending={journey.isPending || stations.isPending}
+        isPending={journey.isPending || stations.isPending || changes.isPending}
         isError={journey.isError && journey.data === undefined}
         error={journey.error}
         data={journey.data}
@@ -86,16 +96,17 @@ export default function JourneyDetailPage() {
         notFoundTitle="Journey not found"
       >
         {(detail) => {
-          const rows = toStopRows(detail.stops, stationIndex)
+          const live = applyChanges(detail, changes.data ?? [])
+          const rows = toStopRows(live.stops, stationIndex)
 
           return (
             <>
-              <JourneyDetailHeader journey={detail} />
+              <JourneyDetailHeader journey={{ ...detail, status: live.status }} />
 
               <PublishActions
                 journeyId={journeyId}
                 serviceDate={serviceDate}
-                status={detail.status}
+                status={live.status}
                 canPublish={canPublish}
               />
 
@@ -105,6 +116,14 @@ export default function JourneyDetailPage() {
                 </h2>
                 {rows.length === 0 ? <EmptyState title="No stops listed" /> : <StopList rows={rows} />}
               </section>
+
+              {changes.isError ? (
+                <p role="alert" className={styles.alert}>
+                  Published changes could not be loaded.
+                </p>
+              ) : (
+                <ChangeHistory changes={toChangeViews(changes.data ?? [], stationIndex)} />
+              )}
             </>
           )
         }}

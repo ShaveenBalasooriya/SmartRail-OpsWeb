@@ -57,3 +57,22 @@ describe('filterJourneys', () => {
     expect(filterJourneys(journeys, { status: 'scheduled', search: '' })).toEqual([])
   })
 })
+
+describe('filterJourneys with a terminated journey', () => {
+  const withTerminated: Journey[] = [
+    ...journeys,
+    {
+      id: 'j4',
+      serviceName: 'Kandy Late',
+      lineCode: 'KDY',
+      lineName: 'Main Line',
+      direction: 'outbound',
+      scheduledDepartureAt: '2026-10-21T04:00:00Z',
+      status: 'terminated',
+    },
+  ]
+
+  it('keeps only the terminated journeys for the terminated filter', () => {
+    expect(filterJourneys(withTerminated, { status: 'terminated', search: '' }).map((j) => j.id)).toEqual(['j4'])
+  })
+})

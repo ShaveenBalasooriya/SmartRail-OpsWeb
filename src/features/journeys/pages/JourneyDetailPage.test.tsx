@@ -2,9 +2,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext, type AuthContextValue } from '@/app/providers/AuthContext'
 import type { Role } from '@/features/auth/types'
+import { recordChange, resetMockChanges } from '@/features/publishing/api/mockChangeStore'
+import type { PublishedChange } from '@/features/publishing/types'
 import { getStations } from '@/features/stations/api/stations'
 import type { Station } from '@/features/stations/types'
 import { ApiError } from '@/shared/api/ApiError'
@@ -24,10 +26,27 @@ const stations: Station[] = [
     code: 'KDY',
     name: 'Kandy',
     isInterchange: true,
-    platforms: [{ id: 'pl-kandy-2', stationId: 'st-kandy', number: '2' }],
+    platforms: [
+      { id: 'pl-kandy-2', stationId: 'st-kandy', number: '2' },
+      { id: 'pl-kandy-3', stationId: 'st-kandy', number: '3' },
+    ],
     lines: [],
   },
 ]
+
+// A change published on the journey. The values and the time are what each test varies.
+function publishedOn(overrides: Partial<PublishedChange> & Pick<PublishedChange, 'id' | 'type'>): PublishedChange {
+  return {
+    journeyId: JOURNEY_ID,
+    values: {},
+    publishedBy: 'Dev Network Controller',
+    publishedAt: '2026-10-21T02:40:00Z',
+    provenance: 'automatically_published',
+    correctedByChangeId: null,
+    correctsChangeId: null,
+    ...overrides,
+  }
+}
 
 const detail: JourneyDetail = {
   id: JOURNEY_ID,
@@ -91,7 +110,12 @@ function renderPage(
 describe('JourneyDetailPage', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    resetMockChanges()
     vi.mocked(getStations).mockResolvedValue(stations)
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it('shows a loading indicator while the journey is pending', () => {
@@ -130,7 +154,7 @@ describe('JourneyDetailPage', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Stops' })).toBeInTheDocument()
     expect(screen.getByRole('table', { name: 'Stops' })).toBeInTheDocument()
     const kandyRow = screen.getByRole('row', { name: /Kandy/ })
-    expect(within(kandyRow).getAllByRole('cell')[4]).toHaveTextContent('2')
+    expect(within(kandyRow).getAllByRole('cell')[5]).toHaveTextContent('2')
     expect(screen.getByText('Kandy')).toBeInTheDocument()
     expect(screen.getByText('Unknown station')).toBeInTheDocument()
     expect(screen.getAllByText('Passes')).toHaveLength(2)
@@ -229,5 +253,94 @@ describe('JourneyDetailPage', () => {
 
     await screen.findByRole('heading', { level: 1, name: 'Kandy Express' })
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('shows the applied status and "Not served" for a calling stop after a cancellation is published', async () => {
+    recordChange(publishedOn({ id: 'c1', type: 'cancellation' }))
+    vi.mocked(getJourney).mockResolvedValue(detail)
+
+    renderPage()
+
+    await screen.findByRole('heading', { level: 1, name: 'Kandy Express' })
+    expect(screen.getByText('Cancelled')).toBeInTheDocument()
+    expect(screen.getByText('Not served')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Publish a change' })).not.toBeInTheDocument()
+  })
+
+  it('shows the expected time after a delay, and the new platform with the time it changed', async () => {
+    recordChange(publishedOn({ id: 'd1', type: 'delay', values: { fromSequence: 1, minutes: 15 } }))
+    recordChange(
+      publishedOn({
+        id: 'p1',
+        type: 'platform_change',
+        values: { sequence: 1, platformId: 'pl-kandy-3' },
+        publishedAt: '2026-10-21T02:50:00Z',
+      }),
+    )
+    vi.mocked(getJourney).mockResolvedValue(detail)
+
+    renderPage()
+
+    await screen.findByRole('heading', { level: 1, name: 'Kandy Express' })
+    const kandyRow = screen.getByRole('row', { name: /Kandy/ })
+    const cells = within(kandyRow).getAllByRole('cell')
+    expect(cells[3]).toHaveTextContent('08:00')
+    expect(cells[4]).toHaveTextContent('08:15')
+    expect(cells[5]).toHaveTextContent('3Changed at 08:20')
+  })
+
+  it('lists the published changes newest first, with the publisher and the railway time', async () => {
+    recordChange(publishedOn({ id: 'd1', type: 'delay', values: { fromSequence: 1, minutes: 15 } }))
+    recordChange(
+      publishedOn({
+        id: 'p1',
+        type: 'platform_change',
+        values: { sequence: 1, platformId: 'pl-kandy-3' },
+        publishedAt: '2026-10-21T02:50:00Z',
+      }),
+    )
+    vi.mocked(getJourney).mockResolvedValue(detail)
+
+    renderPage()
+
+    await screen.findByRole('heading', { level: 1, name: 'Kandy Express' })
+    const history = screen.getByRole('region', { name: 'Change history' })
+    const items = within(history).getAllByRole('listitem')
+    expect(items[0]).toHaveTextContent('Platform change')
+    expect(items[0]).toHaveTextContent('Stop 1 moves to platform 3')
+    expect(items[0]).toHaveTextContent('Published by Dev Network Controller at 08:20')
+    expect(items[1]).toHaveTextContent('Delay of 15 minutes from stop 1')
+    expect(items[1]).toHaveTextContent('Automatically published')
+  })
+
+  it('says no changes were published when the journey has none', async () => {
+    vi.mocked(getJourney).mockResolvedValue(detail)
+
+    renderPage()
+
+    await screen.findByRole('heading', { level: 1, name: 'Kandy Express' })
+    expect(screen.getByText('No changes published')).toBeInTheDocument()
+  })
+
+  it('says the changes are a development mock while the operations group is mocked', async () => {
+    vi.mocked(getJourney).mockResolvedValue(detail)
+
+    renderPage()
+
+    await screen.findByRole('heading', { level: 1, name: 'Kandy Express' })
+    expect(screen.getByText(/Development mock: changes are not sent to the API yet/)).toBeInTheDocument()
+  })
+
+  it('does not read the mock store once the operations group is real, so the journey keeps its own status', async () => {
+    vi.stubEnv('VITE_USE_REAL_OPERATIONS', 'true')
+    recordChange(publishedOn({ id: 'c1', type: 'cancellation' }))
+    vi.mocked(getJourney).mockResolvedValue(detail)
+
+    renderPage()
+
+    await screen.findByRole('heading', { level: 1, name: 'Kandy Express' })
+    expect(screen.getByText('Not reported')).toBeInTheDocument()
+    expect(screen.queryByText('Not served')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Development mock/)).not.toBeInTheDocument()
   })
 })

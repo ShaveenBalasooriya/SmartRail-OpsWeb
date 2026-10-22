@@ -1,14 +1,21 @@
 // null means the timetable did not report a live status. The timetable endpoint lists scheduled
 // journeys only and carries no live state, so until the live-state read endpoint exists the board
 // shows "not reported" rather than guessing. Clients never infer lifecycle status (architecture §3).
-export type JourneyStatus = 'scheduled' | 'running' | 'cancelled' | 'completed'
+export type JourneyStatus = 'scheduled' | 'running' | 'cancelled' | 'terminated' | 'completed'
 
-export const JOURNEY_STATUS_VALUES: JourneyStatus[] = ['scheduled', 'running', 'cancelled', 'completed']
+export const JOURNEY_STATUS_VALUES: JourneyStatus[] = [
+  'scheduled',
+  'running',
+  'cancelled',
+  'terminated',
+  'completed',
+]
 
 export const JOURNEY_STATUS_LABELS: Record<JourneyStatus, string> = {
   scheduled: 'Scheduled',
   running: 'Running',
   cancelled: 'Cancelled',
+  terminated: 'Terminated',
   completed: 'Completed',
 }
 

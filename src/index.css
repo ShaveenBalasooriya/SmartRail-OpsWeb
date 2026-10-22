@@ -50,6 +50,8 @@
   --status-running-text: #14532d;
   --status-cancelled-bg: #fee2e2;
   --status-cancelled-text: #7f1d1d;
+  --status-terminated-bg: #ffedd5;
+  --status-terminated-text: #7c2d12;
   --status-completed-bg: #ede9fe;
   --status-completed-text: #4c1d95;
   --status-unavailable-bg: #f5f5f4;
@@ -110,6 +112,8 @@
   --status-running-text: #dcfce7;
   --status-cancelled-bg: #7f1d1d;
   --status-cancelled-text: #fee2e2;
+  --status-terminated-bg: #7c2d12;
+  --status-terminated-text: #ffedd5;
   --status-completed-bg: #4c1d95;
   --status-completed-text: #ede9fe;
   --status-unavailable-bg: #292524;

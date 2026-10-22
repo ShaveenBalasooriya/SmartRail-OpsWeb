@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseMinutes, validateDelay, validatePlatformChange } from './validateChange'
+import { parseMinutes, validateDelay, validatePlatformChange, validateTermination } from './validateChange'
 
 const MINUTES_MESSAGE = 'Enter a whole number of minutes from 1 to 720.'
 
@@ -76,5 +76,17 @@ describe('validatePlatformChange', () => {
 
   it('accepts any platform when the stop has none today', () => {
     expect(validatePlatformChange({ sequence: 2, platformId: 'pl-2', currentPlatformId: null }).platformId).toBeNull()
+  })
+})
+
+describe('validateTermination', () => {
+  it('accepts a chosen last stop', () => {
+    expect(validateTermination({ lastStopSequence: 3 })).toEqual({ lastStopSequence: null })
+  })
+
+  it('requires a last stop with the spec message', () => {
+    expect(validateTermination({ lastStopSequence: null })).toEqual({
+      lastStopSequence: 'Choose the last stop the train served.',
+    })
   })
 })

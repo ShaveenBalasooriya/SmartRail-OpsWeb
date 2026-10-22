@@ -63,3 +63,15 @@ export function validatePlatformChange({
     platformId: platformError,
   }
 }
+
+export type TerminationErrors = {
+  lastStopSequence: string | null
+}
+
+// The server accepts only a calling stop that is not the final one. The form offers only those stops, so the
+// only error here is a missing choice. The calling and final-stop rules are not repeated, to keep one source.
+export function validateTermination({ lastStopSequence }: { lastStopSequence: number | null }): TerminationErrors {
+  return {
+    lastStopSequence: lastStopSequence === null ? 'Choose the last stop the train served.' : null,
+  }
+}

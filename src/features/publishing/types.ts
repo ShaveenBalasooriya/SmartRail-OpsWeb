@@ -1,4 +1,4 @@
-// Publishing is the controller's write side. Termination is a later package and is not here.
+// Publishing is the controller's write side: delay, cancellation, early termination and platform change.
 export type ChangeType = 'delay' | 'cancellation' | 'termination' | 'platform_change' | 'correction'
 
 export const CHANGE_TYPE_VALUES: ChangeType[] = [
@@ -49,4 +49,9 @@ export type DelayInput = {
 export type PlatformChangeInput = {
   sequence: number
   platformId: string
+}
+
+// The last calling stop the train served. The request body uses the same field name.
+export type TerminationInput = {
+  lastStopSequence: number
 }

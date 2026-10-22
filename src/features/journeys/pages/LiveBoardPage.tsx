@@ -7,6 +7,7 @@ import JourneyFilterBar from '../components/JourneyFilterBar'
 import JourneyTable from '../components/JourneyTable'
 import { useJourneyFilters } from '../hooks/useJourneyFilters'
 import { useJourneys } from '../hooks/useJourneys'
+import { boardStatusNote } from '../lib/boardStatusNote'
 import { filterJourneys } from '../lib/filterJourneys'
 import type { Journey } from '../types'
 import styles from './LiveBoardPage.module.css'
@@ -65,15 +66,11 @@ export default function LiveBoardPage() {
       >
         {(all) => {
           const visible = filterJourneys(all, { status, search: debouncedSearch })
-          const statusReported = all.some((journey) => journey.status !== null)
+          const statusNote = boardStatusNote(all)
 
           return (
             <>
-              {!statusReported && (
-                <p className={styles.note}>
-                  Live status is not available yet, so status filters match nothing. Scheduled times are shown.
-                </p>
-              )}
+              {statusNote !== null && <p className={styles.note}>{statusNote}</p>}
               {visible.length === 0 ? (
                 // The second empty state: the server returned journeys, but the page's filters removed them all.
                 <EmptyState title="No matching journeys" description="Try another status or clear the search." />

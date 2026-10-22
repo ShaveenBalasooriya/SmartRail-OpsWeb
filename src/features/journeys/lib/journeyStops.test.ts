@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { indexStations } from '@/features/stations/lib/stationLookup'
 import type { Station } from '@/features/stations/types'
-import type { JourneyStop } from '../types'
+import type { StopLiveRow } from './applyChanges'
 import { toStopRows } from './journeyStops'
 
 const stations: Station[] = [
@@ -25,7 +25,8 @@ const stations: Station[] = [
 
 const index = indexStations(stations)
 
-function stop(overrides: Partial<JourneyStop>): JourneyStop {
+// A stop with no change applied: the scheduled times, no expected times, served, and the timetable's platform.
+function stop(overrides: Partial<StopLiveRow>): StopLiveRow {
   return {
     sequence: 1,
     stationId: 'st-galle',
@@ -33,6 +34,10 @@ function stop(overrides: Partial<JourneyStop>): JourneyStop {
     scheduledArrival: '2026-10-21T02:40:00Z',
     scheduledDeparture: '2026-10-21T02:41:00Z',
     platformId: 'pl-galle-1',
+    expectedArrival: null,
+    expectedDeparture: null,
+    isServed: true,
+    platformChangedAt: null,
     ...overrides,
   }
 }
@@ -68,7 +73,10 @@ describe('toStopRows', () => {
       isCalling: true,
       arrival: '2026-10-21T02:40:00Z',
       departure: '2026-10-21T02:41:00Z',
+      expectedTime: null,
+      isServed: true,
       platformNumber: '2',
+      platformChangedAt: null,
     })
   })
 
@@ -102,6 +110,35 @@ describe('toStopRows', () => {
       arrival: null,
       departure: null,
       platformNumber: null,
+    })
+  })
+
+  it('shows the expected departure, or the expected arrival at the final stop, which has no departure', () => {
+    const rows = toStopRows(
+      [
+        stop({
+          sequence: 1,
+          expectedArrival: '2026-10-21T02:55:00Z',
+          expectedDeparture: '2026-10-21T02:56:00Z',
+        }),
+        stop({ sequence: 2, scheduledDeparture: null, expectedArrival: '2026-10-21T03:10:00Z' }),
+      ],
+      index,
+    )
+
+    expect(rows.map((row) => row.expectedTime)).toEqual(['2026-10-21T02:56:00Z', '2026-10-21T03:10:00Z'])
+  })
+
+  it('carries the served flag and the platform change time through to the row', () => {
+    const [row] = toStopRows(
+      [stop({ isServed: false, platformId: 'pl-kandy-2', platformChangedAt: '2026-10-21T02:45:00Z' })],
+      index,
+    )
+
+    expect(row).toMatchObject({
+      isServed: false,
+      platformNumber: '2',
+      platformChangedAt: '2026-10-21T02:45:00Z',
     })
   })
 

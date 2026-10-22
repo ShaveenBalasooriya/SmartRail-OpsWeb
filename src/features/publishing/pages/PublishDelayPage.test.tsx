@@ -11,6 +11,7 @@ import { getStations } from '@/features/stations/api/stations'
 import type { Station } from '@/features/stations/types'
 import { ApiError } from '@/shared/api/ApiError'
 import { publishDelay } from '../api/publish'
+import { MOCK_NOTE } from '../lib/mockNote'
 import type { PublishedChange } from '../types'
 import PublishDelayPage from './PublishDelayPage'
 
@@ -210,7 +211,7 @@ describe('PublishDelayPage', () => {
   it('says the change is a development mock while the operations group is mocked', async () => {
     renderPublishPage()
 
-    expect(await screen.findByText('Development mock: this change is not sent to the API yet.')).toBeInTheDocument()
+    expect(await screen.findByText(MOCK_NOTE)).toBeInTheDocument()
   })
 
   it('does not say it is a mock once the operations group is real', async () => {
@@ -218,7 +219,7 @@ describe('PublishDelayPage', () => {
     renderPublishPage()
 
     await screen.findByRole('heading', { level: 1, name: 'Publish a delay' })
-    expect(screen.queryByText('Development mock: this change is not sent to the API yet.')).not.toBeInTheDocument()
+    expect(screen.queryByText(MOCK_NOTE)).not.toBeInTheDocument()
   })
 
   it('shows the not-found state for a journey that does not exist', async () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { JourneyStop } from '@/features/journeys/types'
 import { indexStations } from '@/features/stations/lib/stationLookup'
 import type { Station } from '@/features/stations/types'
-import { toStopOptions } from './stopOptions'
+import { toStopOptions, toTerminationStopOptions } from './stopOptions'
 
 const stations: Station[] = [
   {
@@ -59,5 +59,28 @@ describe('toStopOptions', () => {
     toStopOptions(stops, index)
 
     expect(stops.map((item) => item.sequence)).toEqual([2, 1])
+  })
+})
+
+describe('toTerminationStopOptions', () => {
+  const index = indexStations(stations)
+
+  it('offers the calling stops except the final one, in sequence order', () => {
+    const options = toTerminationStopOptions([stop(1), stop(2), stop(3), stop(4)], index)
+
+    expect(options.map((option) => option.sequence)).toEqual([1, 2, 3])
+  })
+
+  it('offers nothing when the journey has only one calling stop', () => {
+    expect(toTerminationStopOptions([stop(1)], index)).toEqual([])
+  })
+
+  it('treats the final calling stop as the last one even when a passing stop comes after it', () => {
+    const options = toTerminationStopOptions(
+      [stop(1), stop(2), stop(3, { isCalling: false, platformId: null })],
+      index,
+    )
+
+    expect(options.map((option) => option.sequence)).toEqual([1])
   })
 })

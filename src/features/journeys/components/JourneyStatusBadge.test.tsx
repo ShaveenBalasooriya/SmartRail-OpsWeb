@@ -15,3 +15,17 @@ describe('JourneyStatusBadge', () => {
     expect(screen.getByText('Running')).toBeInTheDocument()
   })
 })
+
+describe('JourneyStatusBadge for every status', () => {
+  it.each([
+    ['scheduled', 'Scheduled'],
+    ['running', 'Running'],
+    ['cancelled', 'Cancelled'],
+    ['terminated', 'Terminated'],
+    ['completed', 'Completed'],
+  ] as const)('labels the %s status as text', (status, label) => {
+    render(<JourneyStatusBadge status={status} />)
+
+    expect(screen.getByText(label)).toBeInTheDocument()
+  })
+})

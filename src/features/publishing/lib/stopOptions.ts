@@ -26,3 +26,9 @@ export function toStopOptions(stops: readonly JourneyStop[], stationIndex: Stati
       }
     })
 }
+
+// An early termination ends the journey after the chosen stop, so the final calling stop is not offered: ending
+// there is not an early termination. The stops are the calling stops in sequence order, so the final one is last.
+export function toTerminationStopOptions(stops: readonly JourneyStop[], stationIndex: StationIndex): StopOption[] {
+  return toStopOptions(stops, stationIndex).slice(0, -1)
+}

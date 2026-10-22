@@ -11,7 +11,7 @@ type PublishActionsProps = {
 }
 
 type PublishAction = {
-  path: 'delay' | 'cancellation' | 'platform-change'
+  path: 'delay' | 'cancellation' | 'platform-change' | 'termination'
   label: string
   isAllowed: (status: JourneyStatus | null) => boolean
 }
@@ -21,8 +21,13 @@ function isOpenForChange(status: JourneyStatus | null): boolean {
   return status === null || status === 'scheduled' || status === 'running'
 }
 
-// A cancellation is refused once a journey has departed, so it is offered only before departure. A running
-// journey has departed, so it is not offered one.
+// The spec's status matrix. Each action is offered only where the server would accept it:
+// - a cancellation is refused once a journey has departed, so it is offered only before departure. A running
+//   journey has departed, so it is never offered one;
+// - an early termination ends a journey that is running, so a scheduled journey is offered none (cancel it
+//   instead);
+// - a cancelled, terminated or completed journey is closed to every change.
+// A null status (not reported) offers every action, and the server decides.
 const ACTIONS: PublishAction[] = [
   { path: 'delay', label: 'Publish a delay', isAllowed: isOpenForChange },
   {
@@ -31,6 +36,11 @@ const ACTIONS: PublishAction[] = [
     isAllowed: (status) => status === null || status === 'scheduled',
   },
   { path: 'platform-change', label: 'Change a platform', isAllowed: isOpenForChange },
+  {
+    path: 'termination',
+    label: 'Early termination',
+    isAllowed: (status) => status === null || status === 'running',
+  },
 ]
 
 // Hidden rather than disabled for an auditor: an action they cannot take is not offered at all.

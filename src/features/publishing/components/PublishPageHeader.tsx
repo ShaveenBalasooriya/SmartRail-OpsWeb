@@ -1,4 +1,5 @@
 import { Link } from 'react-router'
+import { MOCK_NOTE } from '../lib/mockNote'
 import styles from './PublishPageHeader.module.css'
 
 type PublishPageHeaderProps = {
@@ -35,7 +36,7 @@ export default function PublishPageHeader({
         {serviceName !== null && <p className={styles.service}>{serviceName}</p>}
       </header>
 
-      {isMocked && <p className={styles.mock}>Development mock: this change is not sent to the API yet.</p>}
+      {isMocked && <p className={styles.mock}>{MOCK_NOTE}</p>}
     </>
   )
 }

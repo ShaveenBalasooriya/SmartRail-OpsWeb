@@ -6,6 +6,7 @@ import LiveBoardPage from '@/features/journeys/pages/LiveBoardPage'
 import PublishCancellationPage from '@/features/publishing/pages/PublishCancellationPage'
 import PublishDelayPage from '@/features/publishing/pages/PublishDelayPage'
 import PublishPlatformChangePage from '@/features/publishing/pages/PublishPlatformChangePage'
+import PublishTerminationPage from '@/features/publishing/pages/PublishTerminationPage'
 import AppLayout from './layout/AppLayout'
 import NotFoundPage from './pages/NotFoundPage'
 import RouteErrorPage from './pages/RouteErrorPage'
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
                   { path: '/journeys/:journeyId/publish/delay', element: <PublishDelayPage /> },
                   { path: '/journeys/:journeyId/publish/cancellation', element: <PublishCancellationPage /> },
                   { path: '/journeys/:journeyId/publish/platform-change', element: <PublishPlatformChangePage /> },
+                  { path: '/journeys/:journeyId/publish/termination', element: <PublishTerminationPage /> },
                 ],
               },
               {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setMockLatency } from './publish.mock'
-import { publishCancellation, publishDelay, publishPlatformChange } from './publish'
+import { publishCancellation, publishDelay, publishPlatformChange, publishTermination } from './publish'
 
 const JOURNEY_ID = '0196f2a0-0000-7000-8000-000000000001'
 
@@ -77,6 +77,34 @@ describe('publish service', () => {
       const [url, init] = fetchMock.mock.calls[0] ?? []
       expect(url).toBe(`/api/v1/operations/journeys/${JOURNEY_ID}/platform-changes`)
       expect(JSON.parse(String(init?.body))).toEqual({ stopSequence: 2, platformId: 'pl-3' })
+    })
+
+    it('posts a termination to the termination endpoint with the last stop served', async () => {
+      const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ id: 'c4' }))
+      vi.stubGlobal('fetch', fetchMock)
+
+      await publishTermination(JOURNEY_ID, { lastStopSequence: 3 })
+
+      const [url, init] = fetchMock.mock.calls[0] ?? []
+      expect(url).toBe(`/api/v1/operations/journeys/${JOURNEY_ID}/termination`)
+      expect(init?.method).toBe('POST')
+      expect(JSON.parse(String(init?.body))).toEqual({ lastStopSequence: 3 })
+    })
+  })
+
+  describe('while the operations group is mocked, termination', () => {
+    beforeEach(() => {
+      vi.stubEnv('VITE_USE_REAL_OPERATIONS', undefined)
+    })
+
+    it('answers from the mock and never calls the API', async () => {
+      const fetchMock = vi.fn<typeof fetch>()
+      vi.stubGlobal('fetch', fetchMock)
+
+      const change = await publishTermination(JOURNEY_ID, { lastStopSequence: 2 })
+
+      expect(fetchMock).not.toHaveBeenCalled()
+      expect(change).toMatchObject({ type: 'termination', values: { lastStopSequence: 2 } })
     })
   })
 })

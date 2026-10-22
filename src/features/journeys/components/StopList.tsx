@@ -17,6 +17,19 @@ function renderTime(value: string | null) {
   return <time dateTime={value}>{formatRailwayTime(value)}</time>
 }
 
+// The expected column says "Not served" for a stop the train no longer reaches (after a termination, or on a
+// cancelled journey). A dash means no delay applies, so the schedule still holds.
+function renderExpected(row: StopRow) {
+  if (!row.isCalling) {
+    return '—'
+  }
+  if (!row.isServed) {
+    return 'Not served'
+  }
+
+  return renderTime(row.expectedTime)
+}
+
 // A native table, like the board. Non-calling stops say "Passes" in the time columns, so the row reads
 // as a plain fact rather than an empty time.
 export default function StopList({ rows }: StopListProps) {
@@ -30,6 +43,7 @@ export default function StopList({ rows }: StopListProps) {
             <th scope="col">Station</th>
             <th scope="col">Arrives</th>
             <th scope="col">Departs</th>
+            <th scope="col">Expected</th>
             <th scope="col">Platform</th>
           </tr>
         </thead>
@@ -42,7 +56,15 @@ export default function StopList({ rows }: StopListProps) {
               </td>
               <td>{row.isCalling ? renderTime(row.arrival) : 'Passes'}</td>
               <td>{row.isCalling ? renderTime(row.departure) : 'Passes'}</td>
-              <td>{row.platformNumber ?? '—'}</td>
+              <td>{renderExpected(row)}</td>
+              <td>
+                {row.platformNumber ?? '—'}
+                {row.platformChangedAt !== null && (
+                  <span className={styles.changed}>
+                    Changed at <time dateTime={row.platformChangedAt}>{formatRailwayTime(row.platformChangedAt)}</time>
+                  </span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>

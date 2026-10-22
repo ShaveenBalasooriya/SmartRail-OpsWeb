@@ -28,3 +28,10 @@
 .table tbody tr:last-child td {
   border-bottom: 0;
 }
+
+/* A platform change is said in words, with its time, not only by a different number. */
+.changed {
+  display: block;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
