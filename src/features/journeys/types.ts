@@ -40,3 +40,21 @@ export type Journey = {
   scheduledDepartureAt: string
   status: JourneyStatus | null
 }
+
+// One stop of a journey, with its scheduled times as UTC instants. A non-calling stop has no times and
+// no platform, so those fields are null rather than absent.
+export type JourneyStop = {
+  sequence: number
+  stationId: string
+  isCalling: boolean
+  scheduledArrival: string | null
+  scheduledDeparture: string | null
+  platformId: string | null
+}
+
+// The detail view needs the stops and the railway day the journey runs on. The board does not, so
+// these fields live on this type and not on Journey.
+export type JourneyDetail = Journey & {
+  serviceDate: string
+  stops: JourneyStop[]
+}

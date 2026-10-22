@@ -78,7 +78,7 @@ export default function LiveBoardPage() {
                 // The second empty state: the server returned journeys, but the page's filters removed them all.
                 <EmptyState title="No matching journeys" description="Try another status or clear the search." />
               ) : (
-                <JourneyTable journeys={visible} />
+                <JourneyTable journeys={visible} serviceDate={serviceDate} />
               )}
             </>
           )

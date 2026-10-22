@@ -4,11 +4,12 @@ import styles from './JourneyTable.module.css'
 
 type JourneyTableProps = {
   journeys: Journey[]
+  serviceDate: string
 }
 
 // A native table for now. Virtualization and the CSS-grid row layout arrive with the performance pass,
 // when the list grows large enough to need them.
-export default function JourneyTable({ journeys }: JourneyTableProps) {
+export default function JourneyTable({ journeys, serviceDate }: JourneyTableProps) {
   return (
     <div className={styles.wrapper}>
       <table className={styles.table}>
@@ -24,7 +25,7 @@ export default function JourneyTable({ journeys }: JourneyTableProps) {
         </thead>
         <tbody>
           {journeys.map((journey) => (
-            <JourneyTableRow key={journey.id} journey={journey} />
+            <JourneyTableRow key={journey.id} journey={journey} serviceDate={serviceDate} />
           ))}
         </tbody>
       </table>

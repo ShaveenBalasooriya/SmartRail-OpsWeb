@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router'
 import LoginPage from '@/features/auth/pages/LoginPage'
 import AuditPage from '@/features/audit/pages/AuditPage'
+import JourneyDetailPage from '@/features/journeys/pages/JourneyDetailPage'
 import LiveBoardPage from '@/features/journeys/pages/LiveBoardPage'
 import AppLayout from './layout/AppLayout'
 import NotFoundPage from './pages/NotFoundPage'
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
             element: <AppLayout />,
             children: [
               { path: '/board', element: <LiveBoardPage /> },
+              { path: '/journeys/:journeyId', element: <JourneyDetailPage /> },
               {
                 element: <RequireRole allowedRoles={['auditor']} />,
                 children: [{ path: '/audit', element: <AuditPage /> }],
