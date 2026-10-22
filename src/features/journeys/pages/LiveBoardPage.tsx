@@ -1,8 +1,8 @@
-import Button from '@/shared/components/Button'
 import EmptyState from '@/shared/ui/EmptyState'
 import FilterBar from '@/shared/ui/FilterBar'
+import FreshnessNote from '@/shared/ui/FreshnessNote'
 import QueryState from '@/shared/ui/QueryState'
-import { formatRailwayTime, railwayDateKey } from '@/shared/lib/railwayTime'
+import { railwayDateKey } from '@/shared/lib/railwayTime'
 import JourneyFilterBar from '../components/JourneyFilterBar'
 import JourneyTable from '../components/JourneyTable'
 import { useJourneyFilters } from '../hooks/useJourneyFilters'
@@ -31,19 +31,11 @@ export default function LiveBoardPage() {
           <p className={styles.subtitle}>Journeys for {serviceDate}</p>
         </div>
 
-        <div className={styles.freshness}>
-          {journeys.dataUpdatedAt > 0 && (
-            <p>
-              Last updated{' '}
-              <time dateTime={new Date(journeys.dataUpdatedAt).toISOString()}>
-                {formatRailwayTime(new Date(journeys.dataUpdatedAt), true)}
-              </time>
-            </p>
-          )}
-          <Button variant="secondary" onClick={() => void journeys.refetch()} disabled={journeys.isFetching}>
-            {journeys.isFetching ? 'Refreshing…' : 'Refresh'}
-          </Button>
-        </div>
+        <FreshnessNote
+          updatedAt={journeys.dataUpdatedAt}
+          isFetching={journeys.isFetching}
+          onRefresh={() => void journeys.refetch()}
+        />
       </header>
 
       {isStale && (

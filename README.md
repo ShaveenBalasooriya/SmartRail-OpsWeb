@@ -43,6 +43,19 @@ stored in `sessionStorage`. It is not authentication. It is replaced by Authenti
 `add-identity-access` change lands, behind the `sessionService` interface in
 `src/features/auth/api/session.ts`.
 
+## Real and mocked endpoints
+
+An endpoint the API does not have yet is served by a mock until its backend change lands. Each endpoint
+group has one Vite flag, set in `.env.local` (restart `npm run dev` after changing it):
+
+| Flag | Group it switches | Unset or any value other than `true` |
+|---|---|---|
+| `VITE_USE_REAL_OPERATIONS=true` | publishing, corrections, journey live state | mocked |
+| `VITE_USE_REAL_AUDIT=true` | audit | mocked |
+| `VITE_USE_REAL_STREAM=true` | live updates | mocked |
+
+`src/shared/api/mockSwitch.ts` reads the flags. Reference data (stations) and the timetable are always real.
+
 ## Why it is built this way (and not otherwise)
 
 - **Feature folders, not type folders.** Each domain's code sits together, so a change to journeys touches
