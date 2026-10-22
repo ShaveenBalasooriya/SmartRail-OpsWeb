@@ -1,0 +1,23 @@
+.page {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+}
+
+.card {
+  width: 100%;
+  max-width: 28rem;
+  padding: 2rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.title {
+  font-size: var(--text-xl);
+}
+
+.note {
+  margin: 0.75rem 0 1.5rem;
+  color: var(--text-secondary);
+}
