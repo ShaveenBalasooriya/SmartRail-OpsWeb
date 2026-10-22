@@ -44,7 +44,7 @@ describe('publish service', () => {
       vi.stubEnv('VITE_USE_REAL_OPERATIONS', 'true')
     })
 
-    it('posts a delay to the delays endpoint with the assumed body', async () => {
+    it('posts a delay to the delays endpoint with the design body', async () => {
       const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ id: 'c1' }))
       vi.stubGlobal('fetch', fetchMock)
 
@@ -53,7 +53,7 @@ describe('publish service', () => {
       const [url, init] = fetchMock.mock.calls[0] ?? []
       expect(url).toBe(`/api/v1/operations/journeys/${JOURNEY_ID}/delays`)
       expect(init?.method).toBe('POST')
-      expect(JSON.parse(String(init?.body))).toEqual({ fromSequence: 2, minutes: 10 })
+      expect(JSON.parse(String(init?.body))).toEqual({ fromStopSequence: 2, minutes: 10 })
     })
 
     it('posts a cancellation with no body', async () => {
@@ -68,7 +68,7 @@ describe('publish service', () => {
       expect(init?.body).toBeUndefined()
     })
 
-    it('posts a platform change to the platform-changes endpoint with the assumed body', async () => {
+    it('posts a platform change to the platform-changes endpoint with the design body', async () => {
       const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ id: 'c3' }))
       vi.stubGlobal('fetch', fetchMock)
 
@@ -76,7 +76,7 @@ describe('publish service', () => {
 
       const [url, init] = fetchMock.mock.calls[0] ?? []
       expect(url).toBe(`/api/v1/operations/journeys/${JOURNEY_ID}/platform-changes`)
-      expect(JSON.parse(String(init?.body))).toEqual({ sequence: 2, platformId: 'pl-3' })
+      expect(JSON.parse(String(init?.body))).toEqual({ stopSequence: 2, platformId: 'pl-3' })
     })
   })
 })
