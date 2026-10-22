@@ -11,6 +11,8 @@ type ConfirmDialogProps = {
   // Follows the trigger's variant, so a danger action asks with a danger button.
   confirmVariant?: 'primary' | 'secondary' | 'danger'
   isConfirming?: boolean
+  // The confirm button's text while a request is in flight. "Publishing…" says more than the default.
+  pendingLabel?: string
   error?: string | null
   onConfirm: () => void
   onCancel: () => void
@@ -30,6 +32,7 @@ export default function ConfirmDialog({
   cancelLabel = 'Cancel',
   confirmVariant = 'primary',
   isConfirming = false,
+  pendingLabel = 'Working…',
   error,
   onConfirm,
   onCancel,
@@ -116,7 +119,7 @@ export default function ConfirmDialog({
             {cancelLabel}
           </Button>
           <Button variant={confirmVariant} onClick={onConfirm} disabled={isConfirming}>
-            {isConfirming ? 'Working…' : confirmLabel}
+            {isConfirming ? pendingLabel : confirmLabel}
           </Button>
         </div>
       </div>

@@ -1,0 +1,35 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 28rem;
+}
+
+.control {
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.control:disabled {
+  background: var(--highlight-subtle);
+  color: var(--text-secondary);
+}
+
+.control[aria-invalid='true'] {
+  border-color: var(--error-border);
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}

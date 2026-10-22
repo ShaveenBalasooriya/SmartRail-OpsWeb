@@ -3,6 +3,9 @@ import LoginPage from '@/features/auth/pages/LoginPage'
 import AuditPage from '@/features/audit/pages/AuditPage'
 import JourneyDetailPage from '@/features/journeys/pages/JourneyDetailPage'
 import LiveBoardPage from '@/features/journeys/pages/LiveBoardPage'
+import PublishCancellationPage from '@/features/publishing/pages/PublishCancellationPage'
+import PublishDelayPage from '@/features/publishing/pages/PublishDelayPage'
+import PublishPlatformChangePage from '@/features/publishing/pages/PublishPlatformChangePage'
 import AppLayout from './layout/AppLayout'
 import NotFoundPage from './pages/NotFoundPage'
 import RouteErrorPage from './pages/RouteErrorPage'
@@ -29,6 +32,14 @@ export const router = createBrowserRouter([
             children: [
               { path: '/board', element: <LiveBoardPage /> },
               { path: '/journeys/:journeyId', element: <JourneyDetailPage /> },
+              {
+                element: <RequireRole allowedRoles={['network_controller']} />,
+                children: [
+                  { path: '/journeys/:journeyId/publish/delay', element: <PublishDelayPage /> },
+                  { path: '/journeys/:journeyId/publish/cancellation', element: <PublishCancellationPage /> },
+                  { path: '/journeys/:journeyId/publish/platform-change', element: <PublishPlatformChangePage /> },
+                ],
+              },
               {
                 element: <RequireRole allowedRoles={['auditor']} />,
                 children: [{ path: '/audit', element: <AuditPage /> }],

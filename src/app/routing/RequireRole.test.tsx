@@ -39,4 +39,29 @@ describe('RequireRole', () => {
 
     expect(screen.getByText('Audit content')).toBeInTheDocument()
   })
+
+  // The same guard the publish group uses, at a publish URL: an auditor reads the journey but may not change it.
+  it('keeps an auditor off a publish route, with the forbidden state at that address', () => {
+    const value: AuthContextValue = {
+      currentUser: { id: 'dev-auditor', displayName: 'Test user', role: 'auditor' },
+      isLoading: false,
+      login: vi.fn(),
+      logout: vi.fn(),
+    }
+
+    render(
+      <AuthContext.Provider value={value}>
+        <MemoryRouter initialEntries={['/journeys/j-1/publish/delay']}>
+          <Routes>
+            <Route element={<RequireRole allowedRoles={['network_controller']} />}>
+              <Route path="/journeys/:journeyId/publish/delay" element={<p>Delay form</p>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AuthContext.Provider>,
+    )
+
+    expect(screen.getByRole('heading', { name: 'You do not have access to this page' })).toBeInTheDocument()
+    expect(screen.queryByText('Delay form')).not.toBeInTheDocument()
+  })
 })

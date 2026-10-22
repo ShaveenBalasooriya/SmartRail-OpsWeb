@@ -1,8 +1,11 @@
-import { useMemo } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
+import { useCanPublish } from '@/features/publishing/hooks/useCanPublish'
+import PublishActions from '@/features/publishing/components/PublishActions'
+import { publishedNoticeFrom, publishedNoticeText, type PublishedNotice } from '@/features/publishing/lib/publishedNotice'
 import { useStations } from '@/features/stations/hooks/useStations'
 import { indexStations } from '@/features/stations/lib/stationLookup'
-import { railwayDateKey } from '@/shared/lib/railwayTime'
+import { serviceDateFromParam } from '@/shared/lib/railwayTime'
 import EmptyState from '@/shared/ui/EmptyState'
 import FreshnessNote from '@/shared/ui/FreshnessNote'
 import QueryState from '@/shared/ui/QueryState'
@@ -13,23 +16,27 @@ import { toStopRows } from '../lib/journeyStops'
 import type { JourneyDetail } from '../types'
 import styles from './JourneyDetailPage.module.css'
 
-const SERVICE_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
-
-// The URL is untrusted. A value that is not a YYYY-MM-DD railway day falls back to today's day, as the
-// board does, instead of asking the API for a day it will refuse.
-function serviceDateFrom(value: string | null): string {
-  return value !== null && SERVICE_DATE_PATTERN.test(value) ? value : railwayDateKey(new Date())
-}
-
 // The journey's own page (M-02, M-09): the service name is the h1, the facts and the stops follow. Both
 // roles reach it from the board.
 export default function JourneyDetailPage() {
   const { journeyId = '' } = useParams()
   const [searchParams] = useSearchParams()
-  const serviceDate = serviceDateFrom(searchParams.get('date'))
+  const serviceDate = serviceDateFromParam(searchParams.get('date'))
   const journey = useJourney(journeyId, serviceDate)
   const stations = useStations()
   const stationIndex = useMemo(() => indexStations(stations.data ?? []), [stations.data])
+  const canPublish = useCanPublish()
+
+  const location = useLocation()
+  const navigate = useNavigate()
+  // Read once from the redirect's state. The state is then cleared from the history entry, so a refresh does
+  // not announce the same publish again.
+  const [publishedNotice] = useState<PublishedNotice | null>(() => publishedNoticeFrom(location.state))
+  useEffect(() => {
+    if (location.state !== null) {
+      navigate(location.pathname + location.search, { replace: true, state: null })
+    }
+  }, [location.state, location.pathname, location.search, navigate])
 
   // As on the board: once the journey has loaded, a failed refresh keeps it on screen with a note.
   const isStale = journey.isError && journey.data !== undefined
@@ -60,6 +67,12 @@ export default function JourneyDetailPage() {
         </p>
       )}
 
+      {publishedNotice !== null && (
+        <p role="status" className={styles.notice}>
+          {publishedNoticeText(publishedNotice)}
+        </p>
+      )}
+
       {stations.isError && <p className={styles.note}>Station names could not be loaded.</p>}
 
       <QueryState<JourneyDetail>
@@ -78,6 +91,13 @@ export default function JourneyDetailPage() {
           return (
             <>
               <JourneyDetailHeader journey={detail} />
+
+              <PublishActions
+                journeyId={journeyId}
+                serviceDate={serviceDate}
+                status={detail.status}
+                canPublish={canPublish}
+              />
 
               <section aria-labelledby="journey-stops-title" className={styles.stops}>
                 <h2 id="journey-stops-title" className={styles.sectionTitle}>

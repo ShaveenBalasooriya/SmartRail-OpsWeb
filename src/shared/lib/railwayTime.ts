@@ -21,3 +21,11 @@ export function railwayDateKey(value: Date): string {
     day: '2-digit',
   }).format(value)
 }
+
+const SERVICE_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+
+// The URL is untrusted. A value that is not a YYYY-MM-DD railway day falls back to today's day, so the API
+// is never asked for a day it will refuse.
+export function serviceDateFromParam(value: string | null): string {
+  return value !== null && SERVICE_DATE_PATTERN.test(value) ? value : railwayDateKey(new Date())
+}
