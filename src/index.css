@@ -1,111 +1,176 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+/*
+ * Design tokens and global element styles. Components reference these variables and never
+ * hard-code a colour (see the CSS Module conventions in docs/... and README.md).
+ *
+ * The primary colour is a placeholder rail teal, pending the EP-13 design pass. Blue is kept for
+ * actions only; structure is neutral and status has its own vocabulary. Components reference these
+ * variables and never hard-code a colour; README.md describes the conventions.
+ */
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+:root,
+[data-theme='light'] {
+  color-scheme: light;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Brand (placeholder) */
+  --primary-base: #0f766e;
+  --primary-dark: #115e59;
+  --primary-light: #5eead4;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  /* Structure (neutral) */
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  --border-color: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --highlight-subtle: #f1f5f9;
+
+  /* Actions */
+  --btn-primary-bg: var(--primary-base);
+  --btn-primary-hover: var(--primary-dark);
+  --btn-primary-text: #ffffff;
+  --btn-secondary-bg: var(--bg-surface);
+  --btn-secondary-hover: var(--highlight-subtle);
+  --btn-secondary-text: var(--text-primary);
+  --btn-danger-bg: #b91c1c;
+  --btn-danger-hover: #991b1b;
+  --btn-danger-text: #ffffff;
+  --btn-disabled-bg: #e2e8f0;
+  --btn-disabled-text: #64748b;
+
+  /* Feedback */
+  --focus-ring: var(--primary-base);
+  --error-text: #b91c1c;
+  --error-bg: #fef2f2;
+  --error-border: #fecaca;
+
+  /* Journey status: each one pairs a colour with a text label (never colour alone) */
+  --status-scheduled-bg: #e2e8f0;
+  --status-scheduled-text: #1e293b;
+  --status-running-bg: #dcfce7;
+  --status-running-text: #14532d;
+  --status-cancelled-bg: #fee2e2;
+  --status-cancelled-text: #7f1d1d;
+  --status-terminated-bg: #ffedd5;
+  --status-terminated-text: #7c2d12;
+  --status-completed-bg: #ede9fe;
+  --status-completed-text: #4c1d95;
+  --status-unavailable-bg: #f5f5f4;
+  --status-unavailable-text: #57534e;
+  --platform-change-bg: #fef3c7;
+  --platform-change-text: #78350f;
+
+  /* Type and spacing */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --radius-md: 6px;
+
+  /* Motion: every transition reads this, so one attribute can switch all motion off */
+  --motion-duration: 0.2s;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+[data-theme='dark'] {
+  color-scheme: dark;
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+  /*
+   * Dark mode inverts the hierarchy, not the values: the light primary becomes the action colour
+   * (the base teal would fail contrast on a dark surface) and the base teal becomes the hover.
+   */
+  --primary-base: #0f766e;
+  --primary-dark: #115e59;
+  --primary-light: #5eead4;
+
+  --bg-app: #0b1220;
+  --bg-surface: #111827;
+  --border-color: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --highlight-subtle: #1e293b;
+
+  --btn-primary-bg: var(--primary-light);
+  --btn-primary-hover: #2dd4bf;
+  --btn-primary-text: #042f2e;
+  --btn-secondary-bg: var(--bg-surface);
+  --btn-secondary-hover: var(--highlight-subtle);
+  --btn-secondary-text: var(--text-primary);
+  --btn-danger-bg: #f87171;
+  --btn-danger-hover: #fca5a5;
+  --btn-danger-text: #450a0a;
+  --btn-disabled-bg: #1e293b;
+  --btn-disabled-text: #64748b;
+
+  --focus-ring: var(--primary-light);
+  --error-text: #fca5a5;
+  --error-bg: #450a0a;
+  --error-border: #7f1d1d;
+
+  --status-scheduled-bg: #1e293b;
+  --status-scheduled-text: #e2e8f0;
+  --status-running-bg: #14532d;
+  --status-running-text: #dcfce7;
+  --status-cancelled-bg: #7f1d1d;
+  --status-cancelled-text: #fee2e2;
+  --status-terminated-bg: #7c2d12;
+  --status-terminated-text: #ffedd5;
+  --status-completed-bg: #4c1d95;
+  --status-completed-text: #ede9fe;
+  --status-unavailable-bg: #292524;
+  --status-unavailable-text: #d6d3d1;
+  --platform-change-bg: #78350f;
+  --platform-change-text: #fef3c7;
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+/* Reduced motion: one attribute, set before first paint by index.html, collapses every transition */
+[data-motion='reduced'] {
+  --motion-duration: 0s;
+  scroll-behavior: auto;
+}
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+body {
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  transition:
+    background-color var(--motion-duration),
+    color var(--motion-duration);
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
+h1,
+h2,
+h3 {
+  line-height: 1.2;
   margin: 0;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+/* Visually hidden but still read by screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

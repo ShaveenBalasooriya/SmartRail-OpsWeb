@@ -1,0 +1,12 @@
+.filterBar {
+  container-type: inline-size;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  background: var(--bg-app);
+}
