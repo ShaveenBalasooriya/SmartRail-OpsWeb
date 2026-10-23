@@ -1,0 +1,24 @@
+# The Operations web on its own. The API runs from SmartRail-API (docker compose up there, port 5080).
+#
+#   docker compose up --build
+#
+# The app is served on http://localhost:5173. Requests to /api are forwarded to API_UPSTREAM, which
+# defaults to the API on the host.
+
+name: smartrail-opsweb
+
+services:
+  opsweb:
+    build:
+      context: .
+      args:
+        VITE_USE_REAL_OPERATIONS: ${VITE_USE_REAL_OPERATIONS:-}
+        VITE_USE_REAL_AUDIT: ${VITE_USE_REAL_AUDIT:-}
+        VITE_USE_REAL_STREAM: ${VITE_USE_REAL_STREAM:-}
+    environment:
+      API_UPSTREAM: ${API_UPSTREAM:-http://host.docker.internal:5080}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${OPSWEB_PORT:-5173}:80"
+    restart: unless-stopped

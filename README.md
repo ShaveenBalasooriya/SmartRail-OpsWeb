@@ -127,3 +127,7 @@ src/
 - Query keys are `["entity"]`, `["entity", id]` or `["entity", { facet }]`.
 - Hard-coded colours are not allowed in components. Use the `var(--…)` tokens from `index.css`.
 - Comments explain why, not what.
+
+## Docker
+
+`docker compose up --build` builds the app and serves it with nginx on http://localhost:5173 (`OPSWEB_PORT` changes the port). Requests to `/api` are forwarded to `API_UPSTREAM` (default `http://host.docker.internal:5080`, the API from `SmartRail-API`'s compose), so the browser sees one origin. The `VITE_USE_REAL_*` flags are build arguments, set in the shell or an `.env` file before building.
