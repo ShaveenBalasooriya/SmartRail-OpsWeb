@@ -21,3 +21,21 @@ export type Station = {
   platforms: Platform[]
   lines: StationLine[]
 }
+
+// One station's place in a line's order. Sequence ascending is the outbound direction; the API returns
+// the inbound direction as the same stations reversed, so nothing here depends on travelling direction.
+export type LineStation = {
+  stationId: string
+  code: string
+  name: string
+  sequence: number
+}
+
+// A line and its distinct stations in sequence order, from GET /api/v1/network/lines. The network map
+// draws its schematic from this, so no station name or coordinate is written into the component.
+export type Line = {
+  id: string
+  code: string
+  name: string
+  stations: LineStation[]
+}

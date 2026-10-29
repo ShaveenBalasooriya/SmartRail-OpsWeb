@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Station } from '../types'
-import { indexStations, platformNumber, platformsOf, stationName } from './stationLookup'
+import { indexStations, interchangeStationIds, platformNumber, platformsOf, stationName } from './stationLookup'
 
 const stations: Station[] = [
   {
@@ -48,6 +48,19 @@ describe('indexStations', () => {
     indexStations(stations)
 
     expect(stations[0]?.platforms.map((platform) => platform.number)).toEqual(original)
+  })
+})
+
+describe('interchangeStationIds', () => {
+  it('lists only the stations the network marks as interchanges', () => {
+    const ids = interchangeStationIds(stations)
+
+    expect(ids.has('st-kandy')).toBe(true)
+    expect(ids.has('st-galle')).toBe(false)
+  })
+
+  it('returns no ids for an empty station list', () => {
+    expect(interchangeStationIds([]).size).toBe(0)
   })
 })
 

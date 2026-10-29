@@ -44,3 +44,17 @@ export function platformNumber(index: StationIndex, platformId: string): string 
 export function platformsOf(index: StationIndex, stationId: string): readonly Platform[] | null {
   return index.platformsByStationId.get(stationId) ?? null
 }
+
+// The ids of the stations the network marks as interchanges. The journey's stops carry a station id, so
+// the stop list can tag the ones that are interchanges without matching on names.
+export function interchangeStationIds(stations: readonly Station[]): ReadonlySet<string> {
+  const ids = new Set<string>()
+
+  for (const station of stations) {
+    if (station.isInterchange) {
+      ids.add(station.id)
+    }
+  }
+
+  return ids
+}

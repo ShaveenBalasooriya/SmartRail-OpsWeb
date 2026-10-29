@@ -1,0 +1,159 @@
+.map {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.mapCard {
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  overflow-x: auto;
+}
+
+/* The design keeps the schematic readable by scrolling it rather than squeezing the labels. */
+.svg {
+  display: block;
+  width: 100%;
+  min-width: 900px;
+  height: auto;
+  font-family: var(--font-sans);
+  overflow: visible;
+}
+
+.lineName {
+  font: 700 13px var(--font-sans);
+}
+
+.stations circle {
+  fill: var(--bg-surface);
+  stroke: var(--text-primary);
+  stroke-width: 3;
+}
+
+.hub {
+  fill: var(--bg-surface);
+  stroke: var(--text-primary);
+  stroke-width: 4;
+}
+
+.hubCore {
+  fill: var(--text-primary);
+}
+
+.stationText {
+  font: 600 13px var(--font-sans);
+  fill: var(--text-primary);
+}
+
+.stationSub {
+  font: 500 12px var(--font-sans);
+  fill: var(--text-secondary);
+}
+
+.card {
+  stroke-width: 1.5;
+}
+
+.cardRunning {
+  fill: var(--status-running-bg);
+  stroke: var(--status-running-text);
+}
+
+.cardStale {
+  fill: var(--bg-surface);
+  stroke: var(--platform-change-text);
+  stroke-dasharray: 5 4;
+}
+
+.cardTerminated {
+  fill: var(--status-terminated-bg);
+  stroke: var(--status-terminated-text);
+}
+
+.cardName {
+  font: 700 13px var(--font-sans);
+}
+
+.cardStatus {
+  font: 600 12px var(--font-sans);
+}
+
+.nameRunning {
+  fill: var(--status-running-text);
+}
+
+.nameStale {
+  fill: var(--text-primary);
+}
+
+.nameTerminated {
+  fill: var(--status-terminated-text);
+}
+
+.textRunning {
+  fill: var(--status-running-text);
+}
+
+.textStale {
+  fill: var(--platform-change-text);
+}
+
+.textTerminated {
+  fill: var(--status-terminated-text);
+}
+
+.stem {
+  fill: none;
+  stroke-width: 2;
+}
+
+.stemRunning {
+  stroke: var(--status-running-text);
+}
+
+.stemStale {
+  stroke: var(--platform-change-text);
+}
+
+.stemTerminated {
+  stroke: var(--status-terminated-text);
+}
+
+.trainMarker {
+  stroke-width: 2.5;
+}
+
+.markerRunning {
+  fill: var(--status-running-text);
+  stroke: var(--status-running-text);
+}
+
+.markerStale {
+  fill: var(--bg-surface);
+  stroke: var(--platform-change-text);
+}
+
+.endMarker {
+  stroke: none;
+}
+
+.outbound path {
+  fill: none;
+  stroke: var(--text-secondary);
+}
+
+.arrowHead {
+  fill: var(--text-secondary);
+}
+
+.outbound text {
+  font: 500 12px var(--font-sans);
+  fill: var(--text-secondary);
+}
+
+.noTrains {
+  margin: 0;
+  color: var(--text-secondary);
+}
