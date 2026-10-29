@@ -1,0 +1,59 @@
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+  width: 100%;
+}
+
+/* FormField renders its own wrapper div, so size every field by its position in this form. */
+.form > div {
+  flex: 1 1 12rem;
+  min-width: 12rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.field label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.control {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  transition:
+    background-color var(--motion-duration),
+    border-color var(--motion-duration);
+}
+
+.control[aria-invalid='true'] {
+  border-color: var(--error-border);
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Keep the buttons at their natural width; the rule above would otherwise grow them like a field. */
+.form > .actions {
+  flex: 0 0 auto;
+  min-width: 0;
+}

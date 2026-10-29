@@ -1,0 +1,29 @@
+/* The board's page rhythm: a 1.5rem gap between the header, the panels and the record. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  font-size: var(--text-xl);
+}
+
+.subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary);
+}
+
+.stale {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--error-border);
+  border-radius: var(--radius-md);
+  background: var(--error-bg);
+  color: var(--error-text);
+}
