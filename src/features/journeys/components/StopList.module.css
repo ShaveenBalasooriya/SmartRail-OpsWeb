@@ -12,7 +12,7 @@
 
 .table th,
 .table td {
-  padding: 0.75rem 1rem;
+  padding: 0.625rem 0.75rem;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
   vertical-align: middle;
@@ -23,10 +23,108 @@
   font-weight: 600;
   color: var(--text-secondary);
   background: var(--bg-surface);
+  white-space: nowrap;
 }
 
 .table tbody tr:last-child td {
   border-bottom: 0;
+}
+
+.table time {
+  font-variant-numeric: tabular-nums;
+}
+
+.markerHeader {
+  width: 2.5rem;
+}
+
+/* The timeline runs through the marker column; a departed stop turns its segment primary. */
+.table td.marker {
+  width: 2.5rem;
+  padding: 0;
+  border-bottom: 0;
+  text-align: center;
+  position: relative;
+  background: linear-gradient(var(--border-color), var(--border-color)) center / 2px 100% no-repeat;
+}
+
+.table td.markerDeparted {
+  background-image: linear-gradient(var(--primary-base), var(--primary-base));
+}
+
+.table tbody tr:first-child td.marker {
+  background-position: center bottom;
+  background-size: 2px 50%;
+}
+
+.table tbody tr:last-child td.marker {
+  background-position: center top;
+  background-size: 2px 50%;
+}
+
+.table tbody tr.rowNext td {
+  background-color: var(--highlight-subtle);
+}
+
+.table tbody tr.rowNext td.marker {
+  background-color: var(--highlight-subtle);
+}
+
+.table tbody tr.rowNotServed td,
+.table tbody tr.rowNotCalling td {
+  color: var(--text-secondary);
+}
+
+.dot {
+  display: inline-block;
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid var(--border-color);
+  border-radius: 50%;
+  background: var(--bg-surface);
+  position: relative;
+  vertical-align: middle;
+}
+
+.dotDeparted {
+  background: var(--primary-base);
+  border-color: var(--primary-base);
+}
+
+.dotNext {
+  border-color: var(--primary-base);
+  box-shadow: 0 0 0 3px var(--status-running-bg);
+}
+
+.dotNotServed {
+  border-style: dashed;
+}
+
+.station {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tag {
+  display: inline-flex;
+  padding: 0.0625rem 0.5rem;
+  border-radius: 999px;
+  background: var(--status-running-bg);
+  color: var(--status-running-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.mutedTag {
+  display: inline-flex;
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 /* A platform change is said in words, with its time, not only by a different number. */

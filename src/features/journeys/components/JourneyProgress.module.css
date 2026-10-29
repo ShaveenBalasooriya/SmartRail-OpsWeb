@@ -1,0 +1,47 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.card p {
+  margin: 0;
+}
+
+.card time {
+  font-variant-numeric: tabular-nums;
+}
+
+.bar {
+  height: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--highlight-subtle);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: var(--primary-base);
+  transition: width var(--motion-duration) ease-out;
+}
+
+.muted {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}

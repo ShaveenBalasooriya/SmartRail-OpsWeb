@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { getJourney } from '../api/journeys'
 
-// The key sits under ['journeys'], so invalidating the board's prefix refreshes the detail too. It is a
-// separate fetch from the board's list for now. Later, a select over the cached list could share one
-// request, once the coupling is worth it.
-export function useJourney(journeyId: string, serviceDate: string) {
+// The detail read carries the journey, its stops and its change history in one response, so there is no
+// second request for changes. The key sits under ['journeys'], so the board's prefix invalidation
+// refreshes the detail too.
+export function useJourney(journeyId: string) {
   return useQuery({
-    queryKey: ['journeys', { serviceDate }, journeyId],
-    queryFn: () => getJourney(journeyId, serviceDate),
+    queryKey: ['journeys', journeyId],
+    queryFn: () => getJourney(journeyId),
   })
 }

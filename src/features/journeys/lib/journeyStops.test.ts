@@ -1,43 +1,40 @@
 import { describe, expect, it } from 'vitest'
-import { indexStations } from '@/features/stations/lib/stationLookup'
-import type { Station } from '@/features/stations/types'
-import type { StopLiveRow } from './applyChanges'
-import { toStopRows } from './journeyStops'
+import type { PublishedChange } from '@/features/publishing/types'
+import type { JourneyStop } from '../types'
+import {
+  firstScheduledDeparture,
+  toJourneyProgress,
+  toPlatformNumbers,
+  toStopRows,
+} from './journeyStops'
 
-const stations: Station[] = [
-  {
-    id: 'st-kandy',
-    code: 'KDY',
-    name: 'Kandy',
-    isInterchange: true,
-    platforms: [{ id: 'pl-kandy-2', stationId: 'st-kandy', number: '2' }],
-    lines: [],
-  },
-  {
-    id: 'st-galle',
-    code: 'GLE',
-    name: 'Galle',
-    isInterchange: false,
-    platforms: [{ id: 'pl-galle-1', stationId: 'st-galle', number: '1' }],
-    lines: [],
-  },
-]
-
-const index = indexStations(stations)
-
-// A stop with no change applied: the scheduled times, no expected times, served, and the timetable's platform.
-function stop(overrides: Partial<StopLiveRow>): StopLiveRow {
+// The API's own stop shape: names, numbers, expected and actual times all come in the response.
+function stop(overrides: Partial<JourneyStop>): JourneyStop {
   return {
     sequence: 1,
     stationId: 'st-galle',
+    stationName: 'Galle',
     isCalling: true,
-    scheduledArrival: '2026-10-21T02:40:00Z',
-    scheduledDeparture: '2026-10-21T02:41:00Z',
-    platformId: 'pl-galle-1',
+    scheduledArrival: '2026-10-28T02:40:00Z',
+    scheduledDeparture: '2026-10-28T02:41:00Z',
     expectedArrival: null,
     expectedDeparture: null,
-    isServed: true,
-    platformChangedAt: null,
+    actualDeparture: null,
+    platformId: 'pl-galle-1',
+    platformNumber: '1',
+    ...overrides,
+  }
+}
+
+function change(
+  overrides: Partial<PublishedChange> & Pick<PublishedChange, 'id' | 'type'>,
+): PublishedChange {
+  return {
+    values: {},
+    publisherName: 'Nimalka Silva',
+    publishedAt: '2026-10-28T02:40:00Z',
+    provenance: 'automatically_published',
+    corrected: false,
     ...overrides,
   }
 }
@@ -46,7 +43,8 @@ describe('toStopRows', () => {
   it('orders the rows by sequence, whatever order the stops arrive in', () => {
     const rows = toStopRows(
       [stop({ sequence: 3 }), stop({ sequence: 1 }), stop({ sequence: 2 })],
-      index,
+      [],
+      'running',
     )
 
     expect(rows.map((row) => row.sequence)).toEqual([1, 2, 3])
@@ -55,94 +53,253 @@ describe('toStopRows', () => {
   it('does not reorder the stops it was given', () => {
     const stops = [stop({ sequence: 2 }), stop({ sequence: 1 })]
 
-    toStopRows(stops, index)
+    toStopRows(stops, [], 'running')
 
     expect(stops.map((item) => item.sequence)).toEqual([2, 1])
   })
 
-  it('joins the station name, the interchange flag and the platform number', () => {
+  it('carries the station, the scheduled departure and the expected departure', () => {
     const [row] = toStopRows(
-      [stop({ sequence: 1, stationId: 'st-kandy', platformId: 'pl-kandy-2' })],
-      index,
-    )
-
-    expect(row).toEqual({
-      sequence: 1,
-      stationName: 'Kandy',
-      isInterchange: true,
-      isCalling: true,
-      arrival: '2026-10-21T02:40:00Z',
-      departure: '2026-10-21T02:41:00Z',
-      expectedTime: null,
-      isServed: true,
-      platformNumber: '2',
-      platformChangedAt: null,
-    })
-  })
-
-  it('leaves the station name null and not interchange for an id the reference data does not know', () => {
-    const [row] = toStopRows([stop({ stationId: 'st-unknown' })], index)
-
-    expect(row?.stationName).toBeNull()
-    expect(row?.isInterchange).toBe(false)
-  })
-
-  it('leaves the platform null when the stop has none or its platform is unknown', () => {
-    const rows = toStopRows(
       [
-        stop({ sequence: 1, platformId: null }),
-        stop({ sequence: 2, platformId: 'pl-unknown' }),
+        stop({
+          sequence: 1,
+          stationName: 'Kandy',
+          platformNumber: '2',
+          expectedDeparture: '2026-10-28T02:50:00Z',
+        }),
       ],
-      index,
-    )
-
-    expect(rows.map((row) => row.platformNumber)).toEqual([null, null])
-  })
-
-  it('keeps a non-calling stop without times or a platform', () => {
-    const [row] = toStopRows(
-      [stop({ isCalling: false, scheduledArrival: null, scheduledDeparture: null, platformId: null })],
-      index,
+      [],
+      'running',
     )
 
     expect(row).toMatchObject({
-      isCalling: false,
-      arrival: null,
-      departure: null,
-      platformNumber: null,
+      sequence: 1,
+      stationName: 'Kandy',
+      isCalling: true,
+      scheduled: '2026-10-28T02:41:00Z',
+      expected: '2026-10-28T02:50:00Z',
+      actualDeparture: null,
+      platformNumber: '2',
     })
   })
 
-  it('shows the expected departure, or the expected arrival at the final stop, which has no departure', () => {
+  it('falls back to the arrival at a terminus that has no departure', () => {
+    const [row] = toStopRows(
+      [
+        stop({
+          scheduledDeparture: null,
+          scheduledArrival: '2026-10-28T03:00:00Z',
+          expectedDeparture: null,
+          expectedArrival: '2026-10-28T03:10:00Z',
+        }),
+      ],
+      [],
+      'running',
+    )
+
+    expect(row?.scheduled).toBe('2026-10-28T03:00:00Z')
+    expect(row?.expected).toBe('2026-10-28T03:10:00Z')
+  })
+
+  it('marks departed, next and upcoming calling stops from the departure logs', () => {
+    const rows = toStopRows(
+      [
+        stop({ sequence: 1, actualDeparture: '2026-10-28T02:45:00Z' }),
+        stop({ sequence: 2 }),
+        stop({ sequence: 3 }),
+      ],
+      [],
+      'running',
+    )
+
+    expect(rows.map((row) => row.state)).toEqual(['departed', 'next', 'upcoming'])
+  })
+
+  it('marks the first calling stop as next before the journey departs', () => {
+    const rows = toStopRows([stop({ sequence: 1 }), stop({ sequence: 2 })], [], 'scheduled')
+
+    expect(rows.map((row) => row.state)).toEqual(['next', 'upcoming'])
+  })
+
+  it('marks a non-calling stop in words, without a state on the timeline', () => {
+    const [row] = toStopRows(
+      [
+        stop({
+          isCalling: false,
+          scheduledArrival: null,
+          scheduledDeparture: null,
+          platformNumber: null,
+        }),
+      ],
+      [],
+      'running',
+    )
+
+    expect(row).toMatchObject({ isCalling: false, state: 'notCalling', platformNumber: null })
+  })
+
+  it('marks the calling stops after an early termination as not served', () => {
+    const rows = toStopRows(
+      [
+        stop({ sequence: 1, actualDeparture: '2026-10-28T02:45:00Z' }),
+        stop({ sequence: 2, actualDeparture: '2026-10-28T02:55:00Z' }),
+        stop({ sequence: 3 }),
+      ],
+      [
+        change({
+          id: 'c-termination',
+          type: 'termination',
+          values: { lastStopSequence: '2', lastStopStationId: 'st-galle' },
+        }),
+      ],
+      'terminated',
+    )
+
+    expect(rows.map((row) => row.state)).toEqual(['departed', 'departed', 'notServed'])
+  })
+
+  it('ignores a corrected termination', () => {
+    const rows = toStopRows(
+      [stop({ sequence: 1, actualDeparture: '2026-10-28T02:45:00Z' }), stop({ sequence: 2 })],
+      [
+        change({
+          id: 'c-termination',
+          type: 'termination',
+          values: { lastStopSequence: '1' },
+          corrected: true,
+        }),
+      ],
+      'terminated',
+    )
+
+    expect(rows.map((row) => row.state)).toEqual(['departed', 'upcoming'])
+  })
+
+  it('shows the time of the latest platform change for the stop it names', () => {
+    const rows = toStopRows(
+      [stop({ sequence: 1 }), stop({ sequence: 2 })],
+      [
+        change({
+          id: 'c-old',
+          type: 'platform_change',
+          values: { stopSequence: '2', platformId: 'pl-1' },
+          publishedAt: '2026-10-28T02:20:00Z',
+        }),
+        change({
+          id: 'c-new',
+          type: 'platform_change',
+          values: { stopSequence: '2', platformId: 'pl-1' },
+          publishedAt: '2026-10-28T02:40:00Z',
+        }),
+      ],
+      'running',
+    )
+
+    expect(rows[0]?.platformChangedAt).toBeNull()
+    expect(rows[1]?.platformChangedAt).toBe('2026-10-28T02:40:00Z')
+  })
+
+  it('does not show a platform change that was corrected', () => {
+    const [row] = toStopRows(
+      [stop({ sequence: 1 })],
+      [
+        change({
+          id: 'c-platform',
+          type: 'platform_change',
+          values: { stopSequence: '1', platformId: 'pl-1' },
+          corrected: true,
+        }),
+      ],
+      'running',
+    )
+
+    expect(row?.platformChangedAt).toBeNull()
+  })
+
+  it('returns no rows for a journey with no stops', () => {
+    expect(toStopRows([], [], 'running')).toEqual([])
+  })
+})
+
+describe('firstScheduledDeparture', () => {
+  it('takes the first calling stop in sequence order', () => {
+    const stops = [
+      stop({ sequence: 2, scheduledDeparture: '2026-10-28T03:00:00Z' }),
+      stop({ sequence: 1, scheduledDeparture: '2026-10-28T02:30:00Z' }),
+      stop({ sequence: 0, isCalling: false, scheduledDeparture: '2026-10-28T02:00:00Z' }),
+    ]
+
+    expect(firstScheduledDeparture(stops)).toBe('2026-10-28T02:30:00Z')
+  })
+
+  it('returns null when the journey has no calling stop', () => {
+    expect(firstScheduledDeparture([stop({ isCalling: false })])).toBeNull()
+  })
+
+  it('returns null when the first calling stop has no scheduled departure', () => {
+    expect(
+      firstScheduledDeparture([stop({ scheduledDeparture: null, scheduledArrival: '2026-10-28T02:20:00Z' })]),
+    ).toBeNull()
+  })
+})
+
+describe('toJourneyProgress', () => {
+  it('counts the calling stops and their departures, and names the last and next stop', () => {
     const rows = toStopRows(
       [
         stop({
           sequence: 1,
-          expectedArrival: '2026-10-21T02:55:00Z',
-          expectedDeparture: '2026-10-21T02:56:00Z',
+          stationName: 'Colombo Fort',
+          actualDeparture: '2026-10-28T02:20:00Z',
+          expectedDeparture: '2026-10-28T02:20:00Z',
         }),
-        stop({ sequence: 2, scheduledDeparture: null, expectedArrival: '2026-10-21T03:10:00Z' }),
+        stop({
+          sequence: 2,
+          stationName: 'Gampaha',
+          actualDeparture: '2026-10-28T02:55:00Z',
+          expectedDeparture: '2026-10-28T02:55:00Z',
+        }),
+        stop({
+          sequence: 3,
+          stationName: 'Veyangoda',
+          expectedDeparture: '2026-10-28T03:10:00Z',
+        }),
       ],
-      index,
+      [],
+      'running',
     )
 
-    expect(rows.map((row) => row.expectedTime)).toEqual(['2026-10-21T02:56:00Z', '2026-10-21T03:10:00Z'])
-  })
-
-  it('carries the served flag and the platform change time through to the row', () => {
-    const [row] = toStopRows(
-      [stop({ isServed: false, platformId: 'pl-kandy-2', platformChangedAt: '2026-10-21T02:45:00Z' })],
-      index,
-    )
-
-    expect(row).toMatchObject({
-      isServed: false,
-      platformNumber: '2',
-      platformChangedAt: '2026-10-21T02:45:00Z',
+    expect(toJourneyProgress(rows)).toEqual({
+      departedCount: 2,
+      callingCount: 3,
+      lastDeparted: { stationName: 'Gampaha', at: '2026-10-28T02:55:00Z' },
+      nextStop: { stationName: 'Veyangoda', expected: '2026-10-28T03:10:00Z' },
     })
   })
 
-  it('returns no rows for a journey with no stops', () => {
-    expect(toStopRows([], index)).toEqual([])
+  it('has no next stop on a completed journey', () => {
+    const rows = toStopRows(
+      [stop({ sequence: 1, actualDeparture: '2026-10-28T02:45:00Z' })],
+      [],
+      'completed',
+    )
+
+    expect(toJourneyProgress(rows)).toMatchObject({ departedCount: 1, nextStop: null })
+  })
+})
+
+describe('toPlatformNumbers', () => {
+  it('maps each platform id a stop carries to its number', () => {
+    const numbers = toPlatformNumbers([
+      stop({ platformId: 'pl-1', platformNumber: '1' }),
+      stop({ platformId: 'pl-2', platformNumber: '2' }),
+    ])
+
+    expect(numbers.get('pl-1')).toBe('1')
+    expect(numbers.get('pl-2')).toBe('2')
+  })
+
+  it('leaves out a stop with no platform', () => {
+    expect(toPlatformNumbers([stop({ platformId: null, platformNumber: null })]).size).toBe(0)
   })
 })

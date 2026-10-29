@@ -1,56 +1,58 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
+import { Link, Outlet, useParams } from 'react-router'
+import ForbiddenPage from '@/app/pages/ForbiddenPage'
 import ChangeHistory from '@/features/publishing/components/ChangeHistory'
 import PublishActions from '@/features/publishing/components/PublishActions'
 import { useCanPublish } from '@/features/publishing/hooks/useCanPublish'
-import { useJourneyChanges } from '@/features/publishing/hooks/useJourneyChanges'
-import { toChangeViews } from '@/features/publishing/lib/changeHistory'
-import { MOCK_NOTE } from '@/features/publishing/lib/mockNote'
-import { publishedNoticeFrom, publishedNoticeText, type PublishedNotice } from '@/features/publishing/lib/publishedNotice'
+import { toChangeViews, type ChangeView } from '@/features/publishing/lib/changeHistory'
 import { useStations } from '@/features/stations/hooks/useStations'
-import { indexStations } from '@/features/stations/lib/stationLookup'
-import { isMocked } from '@/shared/api/mockSwitch'
-import { serviceDateFromParam } from '@/shared/lib/railwayTime'
+import { interchangeStationIds } from '@/features/stations/lib/stationLookup'
+import { isForbiddenRole } from '@/shared/api/ApiError'
 import EmptyState from '@/shared/ui/EmptyState'
 import FreshnessNote from '@/shared/ui/FreshnessNote'
 import QueryState from '@/shared/ui/QueryState'
 import JourneyDetailHeader from '../components/JourneyDetailHeader'
+import JourneyProgress from '../components/JourneyProgress'
 import StopList from '../components/StopList'
 import { useJourney } from '../hooks/useJourney'
-import { applyChanges } from '../lib/applyChanges'
-import { toStopRows } from '../lib/journeyStops'
+import {
+  toJourneyProgress,
+  toPlatformNumbers,
+  toStopRows,
+} from '../lib/journeyStops'
 import type { JourneyDetail } from '../types'
 import styles from './JourneyDetailPage.module.css'
 
-// The journey's own page (M-02, M-09): the service name is the h1, the facts and the stops follow. Both
-// roles reach it from the board. The stops and the status show the journey after its published changes.
+// The journey's own page (M-02, M-09): the service name is the h1, the facts and the stops follow. The
+// controller reaches it from the board. One request supplies the journey, its stops and its change
+// history, so the page no longer joins a second changes request or a station lookup.
 export default function JourneyDetailPage() {
   const { journeyId = '' } = useParams()
-  const [searchParams] = useSearchParams()
-  const serviceDate = serviceDateFromParam(searchParams.get('date'))
-  const journey = useJourney(journeyId, serviceDate)
-  const changes = useJourneyChanges(journeyId)
-  const stations = useStations()
-  const stationIndex = useMemo(() => indexStations(stations.data ?? []), [stations.data])
+  const journey = useJourney(journeyId)
   const canPublish = useCanPublish()
+  const stations = useStations()
 
-  const location = useLocation()
-  const navigate = useNavigate()
-  // Read once from the redirect's state. The state is then cleared from the history entry, so a refresh does
-  // not announce the same publish again.
-  const [publishedNotice] = useState<PublishedNotice | null>(() => publishedNoticeFrom(location.state))
-  useEffect(() => {
-    if (location.state !== null) {
-      navigate(location.pathname + location.search, { replace: true, state: null })
-    }
-  }, [location.state, location.pathname, location.search, navigate])
+  // The Interchange tag is reference data, not journey data. While the stations query loads or if it
+  // fails, the tag is simply absent; the stop list and the rest of the detail never wait for it.
+  const interchangeIds =
+    stations.data === undefined ? undefined : interchangeStationIds(stations.data)
 
-  // As on the board: once the journey has loaded, a failed refresh keeps it on screen with a note.
-  const isStale = journey.isError && journey.data !== undefined
+  // As on the board: once the journey has loaded, a failed browser refresh keeps it on screen with a note.
+  // The API's own staleness flag is separate and is shown in the header.
+  const isRefreshFailed = journey.isError && journey.data !== undefined
 
-  // A loaded journey always has a body to show, even with no stops, so the empty case is handled in the
-  // body and not by QueryState. The waiting on stations stops every row from flashing "Unknown station", and
-  // the waiting on the changes stops the history from flashing "No changes published".
+  // The operations reads are Network Controller-only. A 403 is the signed-in person's role, not a
+  // transient failure, so it goes to the app's forbidden page instead of a retryable error.
+  if (isForbiddenRole(journey.error)) {
+    return <ForbiddenPage />
+  }
+
+  // The API refuses a correction on a completed journey, on a correction, and on a change that already has
+  // one; toChangeViews marks exactly those, so the action only appears where the server accepts it. The
+  // correction drawer owns the request; this page only supplies the link with the chosen change.
+  function correctionHref(change: ChangeView): string {
+    return `/journeys/${encodeURIComponent(journeyId)}/publish/correction?changeId=${encodeURIComponent(change.id)}`
+  }
+
   return (
     <section className={styles.page} aria-labelledby="journey-detail-title">
       <Link to="/board" className={styles.back}>
@@ -62,31 +64,24 @@ export default function JourneyDetailPage() {
           {journey.data?.serviceName ?? 'Journey'}
         </h1>
 
-        <FreshnessNote
-          updatedAt={journey.dataUpdatedAt}
-          isFetching={journey.isFetching}
-          onRefresh={() => void journey.refetch()}
-        />
+        <div className={styles.freshness}>
+          <FreshnessNote
+            updatedAt={journey.dataUpdatedAt}
+            isFetching={journey.isFetching}
+            onRefresh={() => void journey.refetch()}
+          />
+          {journey.data?.isStale === true && <span className={styles.stale}>Stale</span>}
+        </div>
       </header>
 
-      {isStale && (
+      {isRefreshFailed && (
         <p role="alert" className={styles.alert}>
           Could not refresh the journey. The times below are the last update.
         </p>
       )}
 
-      {publishedNotice !== null && (
-        <p role="status" className={styles.notice}>
-          {publishedNoticeText(publishedNotice)}
-        </p>
-      )}
-
-      {isMocked('operations') && <p className={styles.note}>{MOCK_NOTE}</p>}
-
-      {stations.isError && <p className={styles.note}>Station names could not be loaded.</p>}
-
       <QueryState<JourneyDetail>
-        isPending={journey.isPending || stations.isPending || changes.isPending}
+        isPending={journey.isPending}
         isError={journey.isError && journey.data === undefined}
         error={journey.error}
         data={journey.data}
@@ -96,38 +91,44 @@ export default function JourneyDetailPage() {
         notFoundTitle="Journey not found"
       >
         {(detail) => {
-          const live = applyChanges(detail, changes.data ?? [])
-          const rows = toStopRows(live.stops, stationIndex)
+          const rows = toStopRows(detail.stops, detail.changes, detail.status)
+          const progress = toJourneyProgress(rows)
+          const showProgress = detail.status === 'running' || detail.status === 'terminated'
 
           return (
             <>
-              <JourneyDetailHeader journey={{ ...detail, status: live.status }} />
+              <JourneyDetailHeader journey={detail} />
 
-              <PublishActions
-                journeyId={journeyId}
-                serviceDate={serviceDate}
-                status={live.status}
-                canPublish={canPublish}
-              />
+              {showProgress && <JourneyProgress progress={progress} />}
 
-              <section aria-labelledby="journey-stops-title" className={styles.stops}>
-                <h2 id="journey-stops-title" className={styles.sectionTitle}>
-                  Stops
-                </h2>
-                {rows.length === 0 ? <EmptyState title="No stops listed" /> : <StopList rows={rows} />}
-              </section>
+              <PublishActions journeyId={journeyId} status={detail.status} canPublish={canPublish} />
 
-              {changes.isError ? (
-                <p role="alert" className={styles.alert}>
-                  Published changes could not be loaded.
-                </p>
-              ) : (
-                <ChangeHistory changes={toChangeViews(changes.data ?? [], stationIndex)} />
-              )}
+              <div className={styles.columns}>
+                <section aria-labelledby="journey-stops-title" className={styles.stopsColumn}>
+                  <h2 id="journey-stops-title" className={styles.sectionTitle}>
+                    Stops
+                  </h2>
+                  {rows.length === 0 ? (
+                    <EmptyState title="No stops listed" />
+                  ) : (
+                    <StopList rows={rows} interchangeStationIds={interchangeIds} />
+                  )}
+                </section>
+
+                <div className={styles.historyColumn}>
+                  <ChangeHistory
+                    changes={toChangeViews(detail.changes, toPlatformNumbers(detail.stops), detail.status)}
+                    correctionHref={canPublish ? correctionHref : undefined}
+                  />
+                </div>
+              </div>
             </>
           )
         }}
       </QueryState>
+
+      {/* The publish drawers are child routes, so they render here over the detail. */}
+      <Outlet />
     </section>
   )
 }

@@ -2,8 +2,13 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  min-width: 12rem;
-  flex: 1 1 12rem;
+  min-width: 10rem;
+  flex: 1 1 10rem;
+}
+
+/* The search field takes roughly twice the room of a select on a wide screen. */
+.field.wide {
+  flex: 2 1 16rem;
 }
 
 .field label {

@@ -12,7 +12,7 @@
 
 .table th,
 .table td {
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 1rem;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
   vertical-align: middle;
@@ -23,8 +23,76 @@
   font-weight: 600;
   color: var(--text-secondary);
   background: var(--bg-surface);
+  white-space: nowrap;
 }
 
 .table tbody tr:last-child td {
   border-bottom: 0;
+}
+
+.table tbody tr:hover td {
+  background: var(--highlight-subtle);
+}
+
+/* The API reports a stale journey; the row reads as muted and the word Stale explains why. */
+.table tbody tr.rowStale td {
+  background: var(--highlight-subtle);
+}
+
+.table time {
+  font-variant-numeric: tabular-nums;
+}
+
+.service {
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.updated {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.stale {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.0625rem 0.5rem;
+  border-radius: 999px;
+  background: var(--platform-change-bg);
+  color: var(--platform-change-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.viewCell {
+  width: 1%;
+  text-align: right;
+}
+
+.viewButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+  text-decoration: none;
+  transition:
+    background-color var(--motion-duration),
+    color var(--motion-duration);
+}
+
+.viewButton:hover {
+  background: var(--btn-secondary-hover);
+  color: var(--btn-secondary-text);
 }

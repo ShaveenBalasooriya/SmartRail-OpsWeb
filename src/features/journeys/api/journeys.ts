@@ -1,94 +1,148 @@
-import { ApiError } from '@/shared/api/ApiError'
+import type { PublishedChange } from '@/features/publishing/types'
 import { api } from '@/shared/api/client'
-import type { Journey, JourneyDetail, JourneyStop, ServiceDirection } from '../types'
+import type { Journey, JourneyDetail, JourneyStatus, JourneyStop, ServiceDirection } from '../types'
 
-// Wire shape of SmartRail-API JourneyDto (src/Contracts/SmartRail.RailNetwork.Contracts/Timetable.cs),
-// kept local to this file. The board maps only the fields it shows; the detail view reads serviceDate
-// and stops (openapi/v1.json, checked 2026-10-22).
-type JourneyDtoWire = {
+// Wire shapes of the two operations reads, checked against /openapi/v1.json on 2026-10-28 and kept
+// local to this file. GET /api/v1/operations/journeys returns today's journeys in scheduled-departure
+// order; GET /api/v1/operations/journeys/{journeyId} returns the journey, its stops and its changes.
+type StationRefWire = {
   id: string
-  serviceName: string
-  lineCode: string
-  lineName: string
-  direction: ServiceDirection
-  serviceDate: string
-  scheduledDepartureAt: string
-  stops: JourneyStopDtoWire[]
+  name: string
 }
 
-// The API types sequence as an integer or a string (JourneyStopDto), so it is parsed in one place.
-type JourneyStopDtoWire = {
+type PlatformRefWire = {
+  id: string
+  number: string
+}
+
+type JourneyWire = {
+  id: string
+  serviceName: string | null
+  lineCode: string | null
+  lineName: string | null
+  direction: ServiceDirection | null
+  status: JourneyStatus
+  // The OpenAPI types delayMinutes as integer-or-string-or-null, like a stop sequence.
+  delayMinutes: number | string | null
+  lastDepartedStation: StationRefWire | null
+  nextStation: StationRefWire | null
+  guardName: string | null
+  lastUpdatedAt: string
+  isStale: boolean
+}
+
+type JourneyStopWire = {
   sequence: number | string
-  stationId: string
+  station: StationRefWire | null
   isCalling: boolean
   scheduledArrival: string | null
   scheduledDeparture: string | null
-  platformId: string | null
+  expectedArrival: string | null
+  expectedDeparture: string | null
+  actualDeparture: string | null
+  platform: PlatformRefWire | null
 }
 
-// serviceDate is a railway calendar day (YYYY-MM-DD). The API accepts only today or tomorrow.
-export async function getJourneys(serviceDate: string): Promise<Journey[]> {
-  const journeys = await api.get<JourneyDtoWire[]>(
-    `/api/v1/timetable/journeys?date=${encodeURIComponent(serviceDate)}`,
-  )
+type ChangeWire = {
+  id: string
+  type: PublishedChange['type']
+  // The API types the values as strings, but a platform change can name no previous platform, so a
+  // null is dropped rather than turned into the text "null".
+  values: Record<string, string | null>
+  publisherName: string | null
+  publishedAt: string
+  provenance: PublishedChange['provenance']
+  corrected: boolean
+}
+
+type JourneyDetailWire = {
+  journey: JourneyWire
+  stops: JourneyStopWire[]
+  changes: ChangeWire[]
+}
+
+// Today's journeys. The operations list has no date parameter, so neither does this call.
+export async function getJourneys(): Promise<Journey[]> {
+  const journeys = await api.get<JourneyWire[]>('/api/v1/operations/journeys')
   return journeys.map(toJourney)
 }
 
-// There is no GET-by-id on the real API yet; GET /operations/journeys/{id} arrives with
-// add-controller-operations. Until then the detail reads the day's timetable list, which already carries
-// each journey's stops, and picks the journey by id. Replace this when the endpoint exists.
-export async function getJourney(id: string, serviceDate: string): Promise<JourneyDetail> {
-  const journeys = await api.get<JourneyDtoWire[]>(
-    `/api/v1/timetable/journeys?date=${encodeURIComponent(serviceDate)}`,
+// A 404 comes back from the API as ProblemDetails and the shared client turns it into an ApiError,
+// which the detail page shows as "Journey not found". There is no day-list fallback any more.
+export async function getJourney(journeyId: string): Promise<JourneyDetail> {
+  const detail = await api.get<JourneyDetailWire>(
+    `/api/v1/operations/journeys/${encodeURIComponent(journeyId)}`,
   )
-  const journey = journeys.find((candidate) => candidate.id === id)
-  if (!journey) {
-    throw new ApiError(404, 'NOT_FOUND', 'This journey is not on the timetable for that day.')
+
+  return {
+    ...toJourney(detail.journey),
+    stops: detail.stops.map(toJourneyStop),
+    changes: detail.changes.map(toPublishedChange),
   }
-  return toJourneyDetail(journey)
 }
 
-// The timetable endpoint has no status field, so every journey is mapped to null: "not reported".
-// Mapping to "scheduled" would tell a controller that a train which has already left is still
-// waiting to depart. Replace this with the live-state status when the endpoint exists.
-function toJourney(journey: JourneyDtoWire): Journey {
+function toJourney(journey: JourneyWire): Journey {
   return {
     id: journey.id,
     serviceName: journey.serviceName,
     lineCode: journey.lineCode,
     lineName: journey.lineName,
     direction: journey.direction,
-    scheduledDepartureAt: journey.scheduledDepartureAt,
-    status: null,
+    status: journey.status,
+    delayMinutes: toOptionalInteger(journey.delayMinutes, 'delay minutes'),
+    lastDepartedStation: journey.lastDepartedStation,
+    nextStation: journey.nextStation,
+    guardName: journey.guardName,
+    lastUpdatedAt: journey.lastUpdatedAt,
+    isStale: journey.isStale,
   }
 }
 
-// Only the detail path maps stops, so a malformed stop cannot break the board's list.
-function toJourneyDetail(journey: JourneyDtoWire): JourneyDetail {
+function toJourneyStop(stop: JourneyStopWire): JourneyStop {
   return {
-    ...toJourney(journey),
-    serviceDate: journey.serviceDate,
-    stops: journey.stops.map(toJourneyStop),
-  }
-}
-
-function toJourneyStop(stop: JourneyStopDtoWire): JourneyStop {
-  return {
-    sequence: toSequence(stop.sequence),
-    stationId: stop.stationId,
+    sequence: toInteger(stop.sequence, 'stop sequence'),
+    stationId: stop.station?.id ?? null,
+    stationName: stop.station?.name ?? null,
     isCalling: stop.isCalling,
     scheduledArrival: stop.scheduledArrival,
     scheduledDeparture: stop.scheduledDeparture,
-    platformId: stop.platformId,
+    expectedArrival: stop.expectedArrival,
+    expectedDeparture: stop.expectedDeparture,
+    actualDeparture: stop.actualDeparture,
+    platformId: stop.platform?.id ?? null,
+    platformNumber: stop.platform?.number ?? null,
   }
 }
 
-// A sequence that is not a whole number cannot be ordered or shown, so it fails loudly rather than
-// sorting the stop to an arbitrary place. The API's pattern already guarantees an integer.
-function toSequence(value: number | string): number {
-  const sequence = typeof value === 'number' ? value : Number.parseInt(value, 10)
-  if (!Number.isInteger(sequence)) {
-    throw new Error('The timetable sent a stop sequence that is not a whole number.')
+function toPublishedChange(change: ChangeWire): PublishedChange {
+  const values: Record<string, string> = {}
+  for (const [key, value] of Object.entries(change.values)) {
+    if (value !== null) {
+      values[key] = value
+    }
   }
-  return sequence
+
+  return {
+    id: change.id,
+    type: change.type,
+    values,
+    publisherName: change.publisherName,
+    publishedAt: change.publishedAt,
+    provenance: change.provenance,
+    corrected: change.corrected,
+  }
+}
+
+// The API types these numbers as an integer or a string, so both are read here, in one place. A value
+// that is not a whole number cannot be ordered or shown, so it fails loudly instead of being guessed.
+function toInteger(value: number | string, label: string): number {
+  const parsed = typeof value === 'number' ? value : Number.parseInt(value, 10)
+  if (!Number.isInteger(parsed)) {
+    throw new Error(`The operations feed sent ${label} that is not a whole number.`)
+  }
+  return parsed
+}
+
+function toOptionalInteger(value: number | string | null, label: string): number | null {
+  return value === null ? null : toInteger(value, label)
 }

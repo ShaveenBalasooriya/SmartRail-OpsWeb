@@ -3,7 +3,7 @@
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   gap: 1rem;
   margin: 0;
-  padding: 1rem;
+  padding: 1.25rem;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: var(--bg-surface);
@@ -22,4 +22,8 @@
 
 .item dd {
   margin: 0;
+}
+
+.item time {
+  font-variant-numeric: tabular-nums;
 }

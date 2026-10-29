@@ -2,63 +2,79 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/shared/api/ApiError'
 import { getJourney, getJourneys } from './journeys'
 
-// Shaped like SmartRail-API JourneyDto (Timetable.cs), trimmed to the fields the service reads plus a
-// stops array that must be ignored.
-const dtoFixture = [
+// Shaped like ControllerJourneyResponse in /openapi/v1.json (checked 2026-10-28). delayMinutes arrives as a
+// string here to prove that the integer-or-string wire type is parsed in one place.
+const listFixture = [
   {
     id: '0196f2a0-0000-7000-8000-000000000001',
-    serviceId: '0196f2a0-0000-7000-8000-0000000000aa',
     serviceName: 'Kandy Express',
-    lineId: '0196f2a0-0000-7000-8000-0000000000bb',
     lineCode: 'KDY',
     lineName: 'Main Line',
     direction: 'outbound',
-    serviceDate: '2026-10-21',
-    guardStaffId: '0196f2a0-0000-7000-8000-0000000000cc',
-    scheduledDepartureAt: '2026-10-21T02:30:00Z',
-    stops: [{ sequence: 1, stationId: 'x', isCalling: true }],
+    status: 'running',
+    delayMinutes: '7',
+    lastDepartedStation: { id: '0196f2a0-0000-7000-8000-0000000000d1', name: 'Kandy' },
+    nextStation: { id: '0196f2a0-0000-7000-8000-0000000000d2', name: 'Galle' },
+    guardName: 'Nimal Perera',
+    lastUpdatedAt: '2026-10-28T02:35:00Z',
+    isStale: false,
   },
 ]
 
-// Shaped like JourneyDto with complete stops. Sequence arrives as a string for the first stop to prove
-// that the wire's integer-or-string is parsed.
-const detailFixture = [
-  {
-    id: '0196f2a0-0000-7000-8000-000000000001',
-    serviceId: '0196f2a0-0000-7000-8000-0000000000aa',
-    serviceName: 'Kandy Express',
-    lineId: '0196f2a0-0000-7000-8000-0000000000bb',
-    lineCode: 'KDY',
-    lineName: 'Main Line',
-    direction: 'outbound',
-    serviceDate: '2026-10-21',
-    guardStaffId: '0196f2a0-0000-7000-8000-0000000000cc',
-    scheduledDepartureAt: '2026-10-21T02:30:00Z',
-    stops: [
-      {
-        sequence: '2',
-        stationId: '0196f2a0-0000-7000-8000-0000000000d2',
-        isCalling: true,
-        scheduledArrival: '2026-10-21T02:40:00Z',
-        scheduledDeparture: '2026-10-21T02:41:00Z',
-        platformId: '0196f2a0-0000-7000-8000-0000000000e2',
-      },
-      {
-        sequence: 1,
-        stationId: '0196f2a0-0000-7000-8000-0000000000d1',
-        isCalling: true,
-        scheduledArrival: null,
-        scheduledDeparture: '2026-10-21T02:30:00Z',
-        platformId: '0196f2a0-0000-7000-8000-0000000000e1',
-      },
-    ],
-  },
-]
+// Shaped like ControllerJourneyDetailResponse. The first stop's sequence arrives as a string, as the API
+// types an integer-or-string, and its platform is named in the same response.
+const detailFixture = {
+  journey: listFixture[0],
+  stops: [
+    {
+      sequence: '2',
+      station: { id: '0196f2a0-0000-7000-8000-0000000000d2', name: 'Galle' },
+      isCalling: true,
+      scheduledArrival: '2026-10-28T02:40:00Z',
+      scheduledDeparture: '2026-10-28T02:41:00Z',
+      expectedArrival: '2026-10-28T02:47:00Z',
+      expectedDeparture: '2026-10-28T02:48:00Z',
+      actualDeparture: null,
+      platform: { id: '0196f2a0-0000-7000-8000-0000000000e2', number: '3' },
+    },
+    {
+      sequence: 1,
+      station: null,
+      isCalling: false,
+      scheduledArrival: null,
+      scheduledDeparture: '2026-10-28T02:30:00Z',
+      expectedArrival: null,
+      expectedDeparture: '2026-10-28T02:30:00Z',
+      actualDeparture: '2026-10-28T02:31:00Z',
+      platform: null,
+    },
+  ],
+  changes: [
+    {
+      id: '0196f2a0-0000-7000-8000-0000000000c1',
+      type: 'delay',
+      values: { fromStopSequence: '2', minutes: '7' },
+      publisherName: 'Nimalka Silva',
+      publishedAt: '2026-10-28T02:34:00Z',
+      provenance: 'automatically_published',
+      corrected: false,
+    },
+    {
+      id: '0196f2a0-0000-7000-8000-0000000000c2',
+      type: 'correction',
+      values: { correctsChangeId: '0196f2a0-0000-7000-8000-0000000000c1' },
+      publisherName: null,
+      publishedAt: '2026-10-28T02:36:00Z',
+      provenance: 'automatically_published',
+      corrected: false,
+    },
+  ],
+}
 
-function jsonResponse(body: unknown): Response {
+function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
+    status,
+    headers: { 'Content-Type': status === 200 ? 'application/json' : 'application/problem+json' },
   })
 }
 
@@ -67,13 +83,13 @@ describe('getJourneys', () => {
     vi.unstubAllGlobals()
   })
 
-  it('requests the given railway day and maps each journey without a live status', async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(dtoFixture))
+  it('reads today\'s operations list with no date parameter and maps the live state', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(listFixture))
     vi.stubGlobal('fetch', fetchMock)
 
-    const journeys = await getJourneys('2026-10-21')
+    const journeys = await getJourneys()
 
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/timetable/journeys?date=2026-10-21')
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/operations/journeys')
     expect(journeys).toEqual([
       {
         id: '0196f2a0-0000-7000-8000-000000000001',
@@ -81,10 +97,49 @@ describe('getJourneys', () => {
         lineCode: 'KDY',
         lineName: 'Main Line',
         direction: 'outbound',
-        scheduledDepartureAt: '2026-10-21T02:30:00Z',
-        status: null,
+        status: 'running',
+        delayMinutes: 7,
+        lastDepartedStation: { id: '0196f2a0-0000-7000-8000-0000000000d1', name: 'Kandy' },
+        nextStation: { id: '0196f2a0-0000-7000-8000-0000000000d2', name: 'Galle' },
+        guardName: 'Nimal Perera',
+        lastUpdatedAt: '2026-10-28T02:35:00Z',
+        isStale: false,
       },
     ])
+  })
+
+  it('keeps null live values null and carries the API\'s stale flag through', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue(
+        jsonResponse([
+          {
+            ...listFixture[0],
+            serviceName: null,
+            lineCode: null,
+            lineName: null,
+            direction: null,
+            delayMinutes: null,
+            lastDepartedStation: null,
+            nextStation: null,
+            guardName: null,
+            isStale: true,
+          },
+        ]),
+      ),
+    )
+
+    const [journey] = await getJourneys()
+
+    expect(journey).toMatchObject({
+      serviceName: null,
+      direction: null,
+      delayMinutes: null,
+      lastDepartedStation: null,
+      nextStation: null,
+      guardName: null,
+      isStale: true,
+    })
   })
 })
 
@@ -93,47 +148,75 @@ describe('getJourney', () => {
     vi.unstubAllGlobals()
   })
 
-  it('reads the day list and returns the journey with its stops, sequence parsed to a number', async () => {
+  it('reads the journey, its stops and its changes from the detail endpoint in one request', async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(detailFixture))
     vi.stubGlobal('fetch', fetchMock)
 
-    const journey = await getJourney('0196f2a0-0000-7000-8000-000000000001', '2026-10-21')
+    const journey = await getJourney('0196f2a0-0000-7000-8000-000000000001')
 
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/timetable/journeys?date=2026-10-21')
-    expect(journey).toEqual({
-      id: '0196f2a0-0000-7000-8000-000000000001',
-      serviceName: 'Kandy Express',
-      lineCode: 'KDY',
-      lineName: 'Main Line',
-      direction: 'outbound',
-      scheduledDepartureAt: '2026-10-21T02:30:00Z',
-      status: null,
-      serviceDate: '2026-10-21',
-      stops: [
-        {
-          sequence: 2,
-          stationId: '0196f2a0-0000-7000-8000-0000000000d2',
-          isCalling: true,
-          scheduledArrival: '2026-10-21T02:40:00Z',
-          scheduledDeparture: '2026-10-21T02:41:00Z',
-          platformId: '0196f2a0-0000-7000-8000-0000000000e2',
-        },
-        {
-          sequence: 1,
-          stationId: '0196f2a0-0000-7000-8000-0000000000d1',
-          isCalling: true,
-          scheduledArrival: null,
-          scheduledDeparture: '2026-10-21T02:30:00Z',
-          platformId: '0196f2a0-0000-7000-8000-0000000000e1',
-        },
-      ],
-    })
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      '/api/v1/operations/journeys/0196f2a0-0000-7000-8000-000000000001',
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(journey.stops).toEqual([
+      {
+        sequence: 2,
+        stationId: '0196f2a0-0000-7000-8000-0000000000d2',
+        stationName: 'Galle',
+        isCalling: true,
+        scheduledArrival: '2026-10-28T02:40:00Z',
+        scheduledDeparture: '2026-10-28T02:41:00Z',
+        expectedArrival: '2026-10-28T02:47:00Z',
+        expectedDeparture: '2026-10-28T02:48:00Z',
+        actualDeparture: null,
+        platformId: '0196f2a0-0000-7000-8000-0000000000e2',
+        platformNumber: '3',
+      },
+      {
+        sequence: 1,
+        stationId: null,
+        stationName: null,
+        isCalling: false,
+        scheduledArrival: null,
+        scheduledDeparture: '2026-10-28T02:30:00Z',
+        expectedArrival: null,
+        expectedDeparture: '2026-10-28T02:30:00Z',
+        actualDeparture: '2026-10-28T02:31:00Z',
+        platformId: null,
+        platformNumber: null,
+      },
+    ])
+    expect(journey.changes).toEqual([
+      {
+        id: '0196f2a0-0000-7000-8000-0000000000c1',
+        type: 'delay',
+        values: { fromStopSequence: '2', minutes: '7' },
+        publisherName: 'Nimalka Silva',
+        publishedAt: '2026-10-28T02:34:00Z',
+        provenance: 'automatically_published',
+        corrected: false,
+      },
+      {
+        id: '0196f2a0-0000-7000-8000-0000000000c2',
+        type: 'correction',
+        values: { correctsChangeId: '0196f2a0-0000-7000-8000-0000000000c1' },
+        publisherName: null,
+        publishedAt: '2026-10-28T02:36:00Z',
+        provenance: 'automatically_published',
+        corrected: false,
+      },
+    ])
   })
 
-  it('rejects with a 404 ApiError when the id is not on that day', async () => {
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(detailFixture)))
+  it('rejects with the API\'s 404 as an ApiError', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue(
+        jsonResponse({ title: 'Not Found', detail: 'No journey with that id.' }, 404),
+      ),
+    )
 
-    const failure = await getJourney('0196f2a0-0000-7000-8000-00000000ffff', '2026-10-21').catch(
+    const failure = await getJourney('0196f2a0-0000-7000-8000-00000000ffff').catch(
       (error: unknown) => error,
     )
 
@@ -142,15 +225,17 @@ describe('getJourney', () => {
   })
 
   it('rejects a stop sequence that is not a whole number instead of ordering it arbitrarily', async () => {
-    const malformed = [
-      {
-        ...detailFixture[0],
-        stops: [{ ...detailFixture[0]?.stops[0], sequence: 'first' }],
-      },
-    ]
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(malformed)))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue(
+        jsonResponse({
+          ...detailFixture,
+          stops: [{ ...detailFixture.stops[0], sequence: 'first' }],
+        }),
+      ),
+    )
 
-    await expect(getJourney('0196f2a0-0000-7000-8000-000000000001', '2026-10-21')).rejects.toThrow(
+    await expect(getJourney('0196f2a0-0000-7000-8000-000000000001')).rejects.toThrow(
       'not a whole number',
     )
   })
