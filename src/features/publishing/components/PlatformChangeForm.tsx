@@ -1,30 +1,32 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import Button from '@/shared/components/Button'
 import FormField from '@/shared/ui/FormField'
-import { platformsOf, type StationIndex } from '@/features/stations/lib/stationLookup'
+import { platformNumber, platformsOf, type StationIndex } from '@/features/stations/lib/stationLookup'
 import type { PlatformChangeInput } from '../types'
 import type { StopOption } from '../lib/stopOptions'
 import { validatePlatformChange } from '../lib/validateChange'
 import styles from './PlatformChangeForm.module.css'
 
 type PlatformChangeFormProps = {
+  formId: string
   stops: StopOption[]
   stationIndex: StationIndex
-  isPending: boolean
   onSubmit: (input: PlatformChangeInput) => void
   onDirtyChange?: (isDirty: boolean) => void
+  onValidityChange?: (isValid: boolean) => void
 }
 
 type PlatformField = 'sequence' | 'platformId'
 
 // The platform list is the chosen stop's own station, so a platform of another station cannot be picked.
-// The current platform is listed and marked, and validation refuses it.
+// The current platform is listed and marked, and validation refuses it. The design's "Time became known"
+// field is not built: the publish request has no such value.
 export default function PlatformChangeForm({
+  formId,
   stops,
   stationIndex,
-  isPending,
   onSubmit,
   onDirtyChange,
+  onValidityChange,
 }: PlatformChangeFormProps) {
   const [sequence, setSequence] = useState<number | null>(null)
   const [platformId, setPlatformId] = useState('')
@@ -32,16 +34,21 @@ export default function PlatformChangeForm({
   const [attemptedSubmit, setAttemptedSubmit] = useState(false)
 
   const isDirty = sequence !== null || platformId !== ''
+  const selectedStop = stops.find((stop) => stop.sequence === sequence) ?? null
+  const currentPlatformId = selectedStop?.platformId ?? null
+  const platforms =
+    selectedStop?.stationId == null ? [] : (platformsOf(stationIndex, selectedStop.stationId) ?? [])
+
+  const errors = validatePlatformChange({ sequence, platformId, currentPlatformId })
+  const isValid = errors.sequence === null && errors.platformId === null
+
   useEffect(() => {
     onDirtyChange?.(isDirty)
   }, [isDirty, onDirtyChange])
 
-  const selectedStop = stops.find((stop) => stop.sequence === sequence) ?? null
-  const currentPlatformId = selectedStop?.platformId ?? null
-  const platforms = selectedStop ? (platformsOf(stationIndex, selectedStop.stationId) ?? []) : []
-
-  const errors = validatePlatformChange({ sequence, platformId, currentPlatformId })
-  const isValid = errors.sequence === null && errors.platformId === null
+  useEffect(() => {
+    onValidityChange?.(isValid)
+  }, [isValid, onValidityChange])
 
   function shownError(field: PlatformField): string | null {
     return touched[field] || attemptedSubmit ? errors[field] : null
@@ -69,10 +76,20 @@ export default function PlatformChangeForm({
 
   const noPlatformsHint =
     selectedStop !== null && platforms.length === 0 ? 'No platforms are on record for this station.' : undefined
+  const currentPlatform =
+    currentPlatformId === null ? null : platformNumber(stationIndex, currentPlatformId)
+  const platformHint =
+    noPlatformsHint ??
+    (currentPlatform === null ? undefined : `Currently platform ${currentPlatform}.`)
 
   return (
-    <form noValidate className={styles.form} onSubmit={handleSubmit}>
-      <FormField id="platform-stop" label="Stop whose platform changes" error={shownError('sequence')}>
+    <form id={formId} noValidate className={styles.form} onSubmit={handleSubmit}>
+      <FormField
+        id="platform-stop"
+        label="Stop whose platform changes"
+        hint="Only this station's platforms are offered below."
+        error={shownError('sequence')}
+      >
         {(a11y) => (
           <select
             {...a11y}
@@ -91,12 +108,7 @@ export default function PlatformChangeForm({
         )}
       </FormField>
 
-      <FormField
-        id="platform-new"
-        label="New platform"
-        hint={noPlatformsHint}
-        error={shownError('platformId')}
-      >
+      <FormField id="platform-new" label="New platform" hint={platformHint} error={shownError('platformId')}>
         {(a11y) => (
           <select
             {...a11y}
@@ -117,12 +129,6 @@ export default function PlatformChangeForm({
           </select>
         )}
       </FormField>
-
-      <div className={styles.actions}>
-        <Button type="submit" disabled={!isValid || isPending}>
-          {isPending ? 'Publishing…' : 'Review platform change'}
-        </Button>
-      </div>
     </form>
   )
 }

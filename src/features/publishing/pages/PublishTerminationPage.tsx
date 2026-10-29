@@ -1,36 +1,42 @@
-import { useMemo, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { useCallback, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router'
 import { useCurrentUser } from '@/app/providers/AuthContext'
 import { useJourney } from '@/features/journeys/hooks/useJourney'
 import type { JourneyDetail } from '@/features/journeys/types'
 import { useStations } from '@/features/stations/hooks/useStations'
 import { indexStations } from '@/features/stations/lib/stationLookup'
-import { isMocked } from '@/shared/api/mockSwitch'
+import { formatRailwayTime } from '@/shared/lib/railwayTime'
+import Button from '@/shared/components/Button'
 import { useBlockUnsavedChanges } from '@/shared/hooks/useBlockUnsavedChanges'
-import { serviceDateFromParam } from '@/shared/lib/railwayTime'
 import QueryState from '@/shared/ui/QueryState'
+import ProvenanceNote from '../components/ProvenanceNote'
 import PublishConfirmDialog from '../components/PublishConfirmDialog'
-import PublishPageHeader from '../components/PublishPageHeader'
+import PublishDrawer from '../components/PublishDrawer'
+import ReachList from '../components/ReachList'
+import ReviewList from '../components/ReviewList'
 import TerminationForm from '../components/TerminationForm'
 import UnsavedChangesDialog from '../components/UnsavedChangesDialog'
 import { usePublishTermination } from '../hooks/usePublishTermination'
+import { REACH_AUDIENCES } from '../lib/audiences'
 import { publishErrorMessage } from '../lib/publishErrorMessage'
 import { toTerminationStopOptions } from '../lib/stopOptions'
+import { stopsNoLongerServed } from '../lib/terminationPreview'
 import type { TerminationInput } from '../types'
 import styles from './PublishTerminationPage.module.css'
 
-// The same flow as the delay page: the form holds a draft, the dialog confirms it, and a failure keeps the
-// draft with the dialog's message. The termination is irreversible for the train's journey, so the dialog's
-// confirm button is the danger variant.
+const FORM_ID = 'publish-termination-form'
+
+// The early-termination drawer. The same flow as the delay drawer: the form holds a draft, the review dialog
+// confirms it, and a failure keeps the draft with the dialog's message. The termination is irreversible for
+// the train's journey, so the review button is the danger variant.
 export default function PublishTerminationPage() {
   const { journeyId = '' } = useParams()
-  const [searchParams] = useSearchParams()
-  const serviceDate = serviceDateFromParam(searchParams.get('date'))
   const navigate = useNavigate()
   const publisher = useCurrentUser()
-  const journey = useJourney(journeyId, serviceDate)
+  const journey = useJourney(journeyId)
   const stations = useStations()
   const stationIndex = useMemo(() => indexStations(stations.data ?? []), [stations.data])
+  // The final calling stop and every stop the train has already left are not candidates.
   const stops = useMemo(
     () => (journey.data ? toTerminationStopOptions(journey.data.stops, stationIndex) : []),
     [journey.data, stationIndex],
@@ -38,79 +44,161 @@ export default function PublishTerminationPage() {
   const publish = usePublishTermination(journeyId)
 
   const [isDirty, setIsDirty] = useState(false)
+  const [isValid, setIsValid] = useState(false)
+  const [draftStopSequence, setDraftStopSequence] = useState<number | null>(null)
   const { blocker, markSubmitted } = useBlockUnsavedChanges(isDirty)
-  const [draft, setDraft] = useState<TerminationInput | null>(null)
+  const [reviewDraft, setReviewDraft] = useState<TerminationInput | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+
+  const close = useCallback(() => {
+    navigate(`/journeys/${encodeURIComponent(journeyId)}`)
+  }, [journeyId, navigate])
+
+  const handleDirtyChange = useCallback((value: boolean) => setIsDirty(value), [])
+  const handleValidityChange = useCallback((value: boolean) => setIsValid(value), [])
+  const handleDraftChange = useCallback((value: number | null) => setDraftStopSequence(value), [])
+
+  const notServedRows = useMemo(
+    () =>
+      journey.data === undefined || draftStopSequence === null
+        ? []
+        : stopsNoLongerServed(journey.data.stops, draftStopSequence),
+    [journey.data, draftStopSequence],
+  )
+
+  const reviewedStop = stops.find((stop) => stop.sequence === reviewDraft?.lastStopSequence)
+  const serviceName = journey.data?.serviceName ?? 'This journey'
+  const summary =
+    reviewDraft === null
+      ? ''
+      : `${serviceName} will end its journey at ${reviewedStop?.label ?? `stop ${reviewDraft.lastStopSequence}`}.`
 
   function handleSubmit(input: TerminationInput) {
     publish.reset()
-    setDraft(input)
+    setReviewDraft(input)
     setIsDialogOpen(true)
   }
 
   async function handleConfirm() {
-    if (draft === null) {
+    if (reviewDraft === null) {
       return
     }
 
     try {
-      const change = await publish.mutateAsync(draft)
-      // Before navigate(): the blocker reads this flag in the same tick, before React re-renders.
+      const change = await publish.mutateAsync(reviewDraft)
       markSubmitted()
-      navigate(`/journeys/${encodeURIComponent(journeyId)}?date=${encodeURIComponent(serviceDate)}`, {
-        state: { published: { type: 'termination', publishedAt: change.publishedAt } },
-      })
+      navigate(`/journeys/${encodeURIComponent(journeyId)}/published/${encodeURIComponent(change.id)}`)
     } catch {
       // The failure is shown from publish.error inside the dialog, so the rejection only has to be stopped here.
     }
   }
 
-  const draftStop = stops.find((stop) => stop.sequence === draft?.lastStopSequence)
-  const summary =
-    draft === null
-      ? ''
-      : `The train ends its journey after ${draftStop?.label ?? `stop ${draft.lastStopSequence}`}. Later stops are no longer served.`
-
   return (
-    <section className={styles.page} aria-labelledby="publish-termination-title">
-      <PublishPageHeader
-        titleId="publish-termination-title"
-        title="Publish an early termination"
+    <>
+      <PublishDrawer
+        title="Early termination"
         serviceName={journey.data?.serviceName ?? null}
-        journeyId={journeyId}
-        serviceDate={serviceDate}
-        isMocked={isMocked('operations')}
-      />
-
-      {stations.isError && <p className={styles.note}>Station names could not be loaded.</p>}
-
-      <QueryState<JourneyDetail>
-        isPending={journey.isPending || stations.isPending}
-        isError={journey.isError && journey.data === undefined}
-        error={journey.error}
-        data={journey.data}
-        onRetry={journey.refetch}
-        isEmpty={() => false}
-        emptyTitle="Journey not found"
-        notFoundTitle="Journey not found"
+        lineName={journey.data?.lineName ?? null}
+        onClose={close}
+        actions={
+          <>
+            <Button variant="secondary" onClick={close}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="danger" form={FORM_ID} disabled={!isValid || publish.isPending}>
+              {publish.isPending ? 'Publishing…' : 'Review termination'}
+            </Button>
+          </>
+        }
       >
-        {() => (
-          <TerminationForm
-            stops={stops}
-            isPending={publish.isPending}
-            onSubmit={handleSubmit}
-            onDirtyChange={setIsDirty}
-          />
-        )}
-      </QueryState>
+        {stations.isError && <p className={styles.note}>Station names could not be loaded.</p>}
+
+        <QueryState<JourneyDetail>
+          isPending={journey.isPending || stations.isPending}
+          isError={journey.isError && journey.data === undefined}
+          error={journey.error}
+          data={journey.data}
+          onRetry={journey.refetch}
+          isEmpty={() => false}
+          emptyTitle="Journey not found"
+          notFoundTitle="Journey not found"
+        >
+          {() => (
+            <>
+              <TerminationForm
+                formId={FORM_ID}
+                stops={stops}
+                onSubmit={handleSubmit}
+                onDirtyChange={handleDirtyChange}
+                onValidityChange={handleValidityChange}
+                onDraftChange={handleDraftChange}
+              />
+
+              <section className={styles.section} aria-labelledby="not-served-title">
+                <h3 id="not-served-title" className={styles.sectionTitle}>
+                  Stops no longer served
+                </h3>
+                {draftStopSequence === null ? (
+                  <p className={styles.hint}>Choose the last stop served to see which stops are no longer served.</p>
+                ) : notServedRows.length === 0 ? (
+                  <p className={styles.hint}>No later calling stops are on record.</p>
+                ) : (
+                  <div className={styles.tableWrap}>
+                    <table className={styles.table}>
+                      <caption className={styles.caption}>
+                        Stops after the last stop served. The change is published to every channel at once.
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th scope="col">Stop</th>
+                          <th scope="col">Scheduled</th>
+                          <th scope="col">Becomes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {notServedRows.map((row) => (
+                          <tr key={row.sequence}>
+                            <td>{row.stopLabel}</td>
+                            <td>
+                              {row.scheduled === null ? (
+                                '—'
+                              ) : (
+                                <time dateTime={row.scheduled}>{formatRailwayTime(row.scheduled)}</time>
+                              )}
+                            </td>
+                            <td>Not served</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+
+              <ReachList title="This termination reaches" />
+              <ProvenanceNote publisherName={publisher.displayName} />
+            </>
+          )}
+        </QueryState>
+      </PublishDrawer>
 
       <PublishConfirmDialog
-        isOpen={isDialogOpen && draft !== null}
+        isOpen={isDialogOpen && reviewDraft !== null}
         title="Publish this early termination?"
         summary={summary}
         publishedBy={publisher.displayName}
-        confirmLabel="Publish termination"
+        confirmLabel="Confirm early termination"
+        cancelLabel="Go back"
         confirmVariant="danger"
+        extra={
+          <>
+            <ReviewList
+              title="No longer served:"
+              items={notServedRows.map((row) => row.stopLabel)}
+            />
+            <ReviewList title="This reaches:" items={REACH_AUDIENCES} />
+          </>
+        }
         isConfirming={publish.isPending}
         error={publish.error ? publishErrorMessage(publish.error) : null}
         onConfirm={() => void handleConfirm()}
@@ -122,6 +210,6 @@ export default function PublishTerminationPage() {
         onStay={() => blocker.reset?.()}
         onLeave={() => blocker.proceed?.()}
       />
-    </section>
+    </>
   )
 }

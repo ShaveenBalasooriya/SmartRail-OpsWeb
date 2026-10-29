@@ -4,7 +4,6 @@ import styles from './PublishActions.module.css'
 
 type PublishActionsProps = {
   journeyId: string
-  serviceDate: string
   // null means the timetable did not report a status. Every action is offered then, and the server decides.
   status: JourneyStatus | null
   canPublish: boolean
@@ -44,7 +43,7 @@ const ACTIONS: PublishAction[] = [
 ]
 
 // Hidden rather than disabled for an auditor: an action they cannot take is not offered at all.
-export default function PublishActions({ journeyId, serviceDate, status, canPublish }: PublishActionsProps) {
+export default function PublishActions({ journeyId, status, canPublish }: PublishActionsProps) {
   if (!canPublish) {
     return null
   }
@@ -63,7 +62,7 @@ export default function PublishActions({ journeyId, serviceDate, status, canPubl
         {actions.map((action) => (
           <li key={action.path}>
             <Link
-              to={`/journeys/${encodeURIComponent(journeyId)}/publish/${action.path}?date=${encodeURIComponent(serviceDate)}`}
+              to={`/journeys/${encodeURIComponent(journeyId)}/publish/${action.path}`}
               className={styles.action}
             >
               {action.label}

@@ -22,19 +22,19 @@ export const PROVENANCE_LABEL = 'Automatically published'
 
 export type ChangeProvenance = 'automatically_published'
 
-// The request bodies and this response shape are ASSUMED from the OpenSpec change
-// add-controller-operations, which states the rules but not the field names. Confirm them against
-// /openapi/v1.json when the endpoints ship.
+// The change shape both operations endpoints return (ControllerChangeResponse in openapi/v1.json,
+// checked 2026-10-28). It has no journey id, because a change belongs to the journey whose detail
+// carries it, and no correctedByChangeId: a correction marks its target with `corrected` and names it
+// in values.correctsChangeId.
 export type PublishedChange = {
   id: string
   type: ChangeType
-  journeyId: string
-  values: Record<string, string | number>
-  publishedBy: string
+  // Every value is a string on the wire; nulls are dropped when the response is mapped.
+  values: Record<string, string>
+  publisherName: string | null
   publishedAt: string
   provenance: ChangeProvenance
-  correctedByChangeId: string | null
-  correctsChangeId: string | null
+  corrected: boolean
 }
 
 // The spec says whole minutes from 1 to 720. The API enforces the same range, so the form shows it first.

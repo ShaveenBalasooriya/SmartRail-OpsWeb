@@ -1,35 +1,58 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import Button from '@/shared/components/Button'
 import FormField from '@/shared/ui/FormField'
 import { DELAY_MAX_MINUTES, DELAY_MIN_MINUTES, type DelayInput } from '../types'
 import type { StopOption } from '../lib/stopOptions'
 import { parseMinutes, validateDelay } from '../lib/validateChange'
 import styles from './DelayForm.module.css'
 
+export type DelayDraft = {
+  fromSequence: number | null
+  minutesText: string
+}
+
 type DelayFormProps = {
+  // The drawer's footer button submits this form by id, so the actions sit in the design's sticky row.
+  formId: string
   stops: StopOption[]
-  isPending: boolean
   onSubmit: (input: DelayInput) => void
   onDirtyChange?: (isDirty: boolean) => void
+  onValidityChange?: (isValid: boolean) => void
+  // The drawer shows a live downstream preview, so it needs the draft before the review step.
+  onDraftChange?: (draft: DelayDraft) => void
 }
 
 type DelayField = 'fromSequence' | 'minutes'
 
 // Errors are derived during render, and a field's error shows only after the user has left it (touched).
-// Submit is disabled until the form is valid, so a submit that reaches the handler is always valid.
-export default function DelayForm({ stops, isPending, onSubmit, onDirtyChange }: DelayFormProps) {
+// The review button stays disabled until the form is valid; a submit that reaches the handler is always valid.
+export default function DelayForm({
+  formId,
+  stops,
+  onSubmit,
+  onDirtyChange,
+  onValidityChange,
+  onDraftChange,
+}: DelayFormProps) {
   const [fromSequence, setFromSequence] = useState<number | null>(null)
   const [minutesText, setMinutesText] = useState('')
   const [touched, setTouched] = useState<Partial<Record<DelayField, boolean>>>({})
   const [attemptedSubmit, setAttemptedSubmit] = useState(false)
 
   const isDirty = fromSequence !== null || minutesText !== ''
+  const errors = validateDelay({ fromSequence, minutesText })
+  const isValid = errors.fromSequence === null && errors.minutes === null
+
   useEffect(() => {
     onDirtyChange?.(isDirty)
   }, [isDirty, onDirtyChange])
 
-  const errors = validateDelay({ fromSequence, minutesText })
-  const isValid = errors.fromSequence === null && errors.minutes === null
+  useEffect(() => {
+    onValidityChange?.(isValid)
+  }, [isValid, onValidityChange])
+
+  useEffect(() => {
+    onDraftChange?.({ fromSequence, minutesText })
+  }, [fromSequence, minutesText, onDraftChange])
 
   function shownError(field: DelayField): string | null {
     return touched[field] || attemptedSubmit ? errors[field] : null
@@ -51,7 +74,7 @@ export default function DelayForm({ stops, isPending, onSubmit, onDirtyChange }:
   }
 
   return (
-    <form noValidate className={styles.form} onSubmit={handleSubmit}>
+    <form id={formId} noValidate className={styles.form} onSubmit={handleSubmit}>
       <FormField id="delay-from-stop" label="Delay starts at stop" error={shownError('fromSequence')}>
         {(a11y) => (
           <select
@@ -90,12 +113,6 @@ export default function DelayForm({ stops, isPending, onSubmit, onDirtyChange }:
           />
         )}
       </FormField>
-
-      <div className={styles.actions}>
-        <Button type="submit" disabled={!isValid || isPending}>
-          {isPending ? 'Publishing…' : 'Review delay'}
-        </Button>
-      </div>
     </form>
   )
 }

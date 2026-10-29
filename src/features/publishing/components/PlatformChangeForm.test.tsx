@@ -37,17 +37,19 @@ const stops: StopOption[] = [
 function renderForm(props: Partial<Parameters<typeof PlatformChangeForm>[0]> = {}) {
   const onSubmit = vi.fn()
   const onDirtyChange = vi.fn()
+  const onValidityChange = vi.fn()
   render(
     <PlatformChangeForm
+      formId="platform-form"
       stops={stops}
       stationIndex={indexStations(stations)}
-      isPending={false}
       onSubmit={onSubmit}
       onDirtyChange={onDirtyChange}
+      onValidityChange={onValidityChange}
       {...props}
     />,
   )
-  return { onSubmit, onDirtyChange }
+  return { onSubmit, onDirtyChange, onValidityChange }
 }
 
 describe('PlatformChangeForm', () => {
@@ -101,26 +103,26 @@ describe('PlatformChangeForm', () => {
     expect(screen.getByLabelText('New platform')).toHaveValue('')
   })
 
-  it('submits the stop and the new platform id once both are valid', async () => {
+  it('reports the form valid once a stop and a different platform are chosen', async () => {
     const user = userEvent.setup()
-    const { onSubmit } = renderForm()
+    const { onValidityChange } = renderForm()
 
     await user.selectOptions(screen.getByLabelText('Stop whose platform changes'), 'Stop 2: Kandy')
-    await user.selectOptions(screen.getByLabelText('New platform'), 'Platform 3')
-    await user.click(screen.getByRole('button', { name: 'Review platform change' }))
+    expect(onValidityChange).toHaveBeenLastCalledWith(false)
 
-    expect(onSubmit).toHaveBeenCalledWith({ sequence: 2, platformId: 'pl-kandy-3' })
+    await user.selectOptions(screen.getByLabelText('New platform'), 'Platform 3')
+    expect(onValidityChange).toHaveBeenLastCalledWith(true)
   })
 
   it('says when a station has no platforms on record', async () => {
     const user = userEvent.setup()
     render(
       <PlatformChangeForm
+        formId="platform-form"
         stops={[{ sequence: 1, stationId: 'st-empty', stationName: 'Empty', platformId: null, label: 'Stop 1: Empty' }]}
         stationIndex={indexStations([
           { id: 'st-empty', code: 'EMP', name: 'Empty', isInterchange: false, platforms: [], lines: [] },
         ])}
-        isPending={false}
         onSubmit={vi.fn()}
       />,
     )

@@ -1,29 +1,31 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import CancellationForm from './CancellationForm'
 
 describe('CancellationForm', () => {
-  it('names the journey and says the cancellation reaches every channel at once', () => {
-    render(<CancellationForm journeyName="Kandy Express" isPending={false} onSubmit={vi.fn()} />)
+  it('names the journey, its departure and what the cancellation does', () => {
+    render(<CancellationForm serviceName="Kandy Express" scheduledDeparture="2026-10-28T02:00:00Z" />)
 
-    expect(screen.getByText(/Cancelling Kandy Express takes effect on every channel at once/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Cancel Kandy Express?' })).toBeInTheDocument()
+    expect(
+      screen.getByText(/Kandy Express departs 07:30 and has not left yet\./),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/takes effect on every channel at once/)).toBeInTheDocument()
   })
 
-  it('asks for the cancellation with a danger button and submits once', async () => {
-    const user = userEvent.setup()
-    const onSubmit = vi.fn()
-    render(<CancellationForm journeyName="Kandy Express" isPending={false} onSubmit={onSubmit} />)
+  it('says a journey that has departed cannot be cancelled', () => {
+    render(<CancellationForm serviceName="Kandy Express" scheduledDeparture={null} />)
 
-    await user.click(screen.getByRole('button', { name: 'Review cancellation' }))
-
-    expect(onSubmit).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('button', { name: 'Review cancellation' }).className).toMatch(/danger/)
+    expect(screen.getByText(/has not left yet/)).toBeInTheDocument()
+    expect(screen.getByText(/A journey that has departed cannot be cancelled\./)).toBeInTheDocument()
   })
 
-  it('copies the button text and disables it while a publish is pending', () => {
-    render(<CancellationForm journeyName="Kandy Express" isPending onSubmit={vi.fn()} />)
+  it('warns that the cancellation cannot be undone and that a mistake is corrected, not reversed', () => {
+    render(<CancellationForm serviceName="Kandy Express" scheduledDeparture={null} />)
 
-    expect(screen.getByRole('button', { name: 'Publishing…' })).toBeDisabled()
+    expect(screen.getByText('This cannot be undone.')).toBeInTheDocument()
+    expect(
+      screen.getByText('A mistake is fixed with a correction, not by reversing the cancellation.'),
+    ).toBeInTheDocument()
   })
 })

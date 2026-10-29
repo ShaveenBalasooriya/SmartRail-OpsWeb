@@ -12,18 +12,28 @@ const stops: StopOption[] = [
 function renderForm(props: Partial<Parameters<typeof DelayForm>[0]> = {}) {
   const onSubmit = vi.fn()
   const onDirtyChange = vi.fn()
+  const onValidityChange = vi.fn()
+  const onDraftChange = vi.fn()
   render(
-    <DelayForm stops={stops} isPending={false} onSubmit={onSubmit} onDirtyChange={onDirtyChange} {...props} />,
+    <DelayForm
+      formId="delay-form"
+      stops={stops}
+      onSubmit={onSubmit}
+      onDirtyChange={onDirtyChange}
+      onValidityChange={onValidityChange}
+      onDraftChange={onDraftChange}
+      {...props}
+    />,
   )
-  return { onSubmit, onDirtyChange }
+  return { onSubmit, onDirtyChange, onValidityChange, onDraftChange }
 }
 
 describe('DelayForm', () => {
-  it('shows no error before the user has touched a field', () => {
-    renderForm()
+  it('shows no error before the user has touched a field, and reports the form invalid', () => {
+    const { onValidityChange } = renderForm()
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Review delay' })).toBeDisabled()
+    expect(onValidityChange).toHaveBeenLastCalledWith(false)
   })
 
   it('shows the minutes error after the user leaves the minutes field', async () => {
@@ -49,32 +59,28 @@ describe('DelayForm', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Choose the stop the delay starts at.')
   })
 
-  it('enables the review button only once the form is valid, and submits the trimmed values', async () => {
+  it('reports the form valid once a stop and a whole number of minutes are chosen', async () => {
     const user = userEvent.setup()
-    const { onSubmit } = renderForm()
+    const { onValidityChange, onDraftChange } = renderForm()
 
     await user.selectOptions(screen.getByLabelText('Delay starts at stop'), 'Stop 2: Galle')
-    expect(screen.getByRole('button', { name: 'Review delay' })).toBeDisabled()
+    expect(onValidityChange).toHaveBeenLastCalledWith(false)
 
-    await user.type(screen.getByLabelText('Delay in minutes'), '  15 ')
-    expect(screen.getByRole('button', { name: 'Review delay' })).toBeEnabled()
-
-    await user.click(screen.getByRole('button', { name: 'Review delay' }))
-
-    expect(onSubmit).toHaveBeenCalledTimes(1)
-    expect(onSubmit).toHaveBeenCalledWith({ fromSequence: 2, minutes: 15 })
+    await user.type(screen.getByLabelText('Delay in minutes'), '15')
+    expect(onValidityChange).toHaveBeenLastCalledWith(true)
+    expect(onDraftChange).toHaveBeenLastCalledWith({ fromSequence: 2, minutesText: '15' })
   })
 
-  it.each(['1.5', '721', ''])('keeps the review button disabled for the minutes %j', async (minutes) => {
+  it.each(['1.5', '721', ''])('keeps the form invalid for the minutes %j', async (minutes) => {
     const user = userEvent.setup()
-    renderForm()
+    const { onValidityChange } = renderForm()
 
     await user.selectOptions(screen.getByLabelText('Delay starts at stop'), 'Stop 3: Kandy')
     if (minutes !== '') {
       await user.type(screen.getByLabelText('Delay in minutes'), minutes)
     }
 
-    expect(screen.getByRole('button', { name: 'Review delay' })).toBeDisabled()
+    expect(onValidityChange).toHaveBeenLastCalledWith(false)
   })
 
   it('reports dirty as soon as a field has a value, and clean again when it is emptied', async () => {
@@ -88,11 +94,5 @@ describe('DelayForm', () => {
 
     await user.clear(screen.getByLabelText('Delay in minutes'))
     expect(onDirtyChange).toHaveBeenLastCalledWith(false)
-  })
-
-  it('copies the button text and disables it while a publish is pending', () => {
-    renderForm({ isPending: true })
-
-    expect(screen.getByRole('button', { name: 'Publishing…' })).toBeDisabled()
   })
 })

@@ -6,17 +6,17 @@ const FALLBACK = 'The change could not be published. Please try again.'
 
 describe('publishErrorMessage', () => {
   it.each([
-    [400, 'The change is not valid. Check the values and try again.'],
-    [403, 'You do not have permission to publish changes.'],
-    [404, 'This journey could not be found.'],
-  ])('maps HTTP %i to its user message', (status, message) => {
-    expect(publishErrorMessage(new ApiError(status, 'UNKNOWN', 'server text'))).toBe(message)
+    [400, 'A delay must be between 1 and 720 minutes.'],
+    [404, 'No journey was found for the given id.'],
+    [409, 'That stop has already departed.'],
+  ])('shows the API detail for HTTP %i verbatim', (status, detail) => {
+    expect(publishErrorMessage(new ApiError(status, 'UNKNOWN', detail))).toBe(detail)
   })
 
-  it('shows the server message for a conflict, since it says what is wrong', () => {
-    expect(
-      publishErrorMessage(new ApiError(409, 'CONFLICT', 'That stop has already departed.')),
-    ).toBe('That stop has already departed.')
+  it('uses the role message for a 403 instead of the server text', () => {
+    expect(publishErrorMessage(new ApiError(403, 'FORBIDDEN_ROLE', 'Forbidden'))).toBe(
+      'You do not have permission to publish changes.',
+    )
   })
 
   it.each([500, 503, 0])('falls back to the generic message for HTTP %i', (status) => {

@@ -3,7 +3,7 @@ import type { JourneyStop } from '@/features/journeys/types'
 
 export type StopOption = {
   sequence: number
-  stationId: string
+  stationId: string | null
   stationName: string | null
   // The platform the stop has today. A platform change is validated against it.
   platformId: string | null
@@ -16,7 +16,7 @@ export function toStopOptions(stops: readonly JourneyStop[], stationIndex: Stati
     .filter((stop) => stop.isCalling)
     .sort((a, b) => a.sequence - b.sequence)
     .map((stop) => {
-      const name = stationName(stationIndex, stop.stationId)
+      const name = stop.stationId === null ? null : stationName(stationIndex, stop.stationId)
       return {
         sequence: stop.sequence,
         stationId: stop.stationId,
@@ -27,8 +27,28 @@ export function toStopOptions(stops: readonly JourneyStop[], stationIndex: Stati
     })
 }
 
+// A delay starts at a stop the train has not left yet. A stop with a departure log has already gone, so the
+// server would refuse a delay from it; offering it would only produce a 409 after the review step.
+export function toNotDepartedStopOptions(
+  stops: readonly JourneyStop[],
+  stationIndex: StationIndex,
+): StopOption[] {
+  return toStopOptions(stops, stationIndex).filter((option) => {
+    const stop = stops.find((candidate) => candidate.sequence === option.sequence)
+    return stop !== undefined && stop.actualDeparture === null
+  })
+}
+
 // An early termination ends the journey after the chosen stop, so the final calling stop is not offered: ending
-// there is not an early termination. The stops are the calling stops in sequence order, so the final one is last.
+// there is not an early termination. It also cannot end at a stop the train has already left, so everything up
+// to and including the last departure is dropped. The stops are the calling stops in sequence order, so the
+// final one is last.
 export function toTerminationStopOptions(stops: readonly JourneyStop[], stationIndex: StationIndex): StopOption[] {
-  return toStopOptions(stops, stationIndex).slice(0, -1)
+  const lastDepartedSequence = stops
+    .filter((stop) => stop.isCalling && stop.actualDeparture !== null)
+    .reduce<number | null>((latest, stop) => (latest === null || stop.sequence > latest ? stop.sequence : latest), null)
+
+  return toStopOptions(stops, stationIndex)
+    .slice(0, -1)
+    .filter((option) => lastDepartedSequence === null || option.sequence > lastDepartedSequence)
 }

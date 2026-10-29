@@ -19,7 +19,7 @@ const EXPECTED: Record<string, string[]> = {
 function renderActions(status: JourneyStatus | null, canPublish = true) {
   render(
     <MemoryRouter>
-      <PublishActions journeyId="j-1" serviceDate="2026-10-21" status={status} canPublish={canPublish} />
+      <PublishActions journeyId="j-1" status={status} canPublish={canPublish} />
     </MemoryRouter>,
   )
 }
@@ -52,20 +52,20 @@ describe('PublishActions', () => {
     expect(screen.queryByRole('heading', { name: 'Publish a change' })).not.toBeInTheDocument()
   })
 
-  it('links each action to its publish route and keeps the service date', () => {
+  it('links each action to its publish route', () => {
     renderActions('scheduled')
 
     expect(screen.getByRole('link', { name: 'Publish a delay' })).toHaveAttribute(
       'href',
-      '/journeys/j-1/publish/delay?date=2026-10-21',
+      '/journeys/j-1/publish/delay',
     )
     expect(screen.getByRole('link', { name: 'Cancel journey' })).toHaveAttribute(
       'href',
-      '/journeys/j-1/publish/cancellation?date=2026-10-21',
+      '/journeys/j-1/publish/cancellation',
     )
     expect(screen.getByRole('link', { name: 'Change a platform' })).toHaveAttribute(
       'href',
-      '/journeys/j-1/publish/platform-change?date=2026-10-21',
+      '/journeys/j-1/publish/platform-change',
     )
   })
 
@@ -74,7 +74,7 @@ describe('PublishActions', () => {
 
     expect(screen.getByRole('link', { name: 'Early termination' })).toHaveAttribute(
       'href',
-      '/journeys/j-1/publish/termination?date=2026-10-21',
+      '/journeys/j-1/publish/termination',
     )
   })
 })

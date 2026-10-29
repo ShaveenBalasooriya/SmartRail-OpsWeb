@@ -12,10 +12,20 @@ const stops: StopOption[] = [
 function renderForm(props: Partial<Parameters<typeof TerminationForm>[0]> = {}) {
   const onSubmit = vi.fn()
   const onDirtyChange = vi.fn()
+  const onValidityChange = vi.fn()
+  const onDraftChange = vi.fn()
   render(
-    <TerminationForm stops={stops} isPending={false} onSubmit={onSubmit} onDirtyChange={onDirtyChange} {...props} />,
+    <TerminationForm
+      formId="termination-form"
+      stops={stops}
+      onSubmit={onSubmit}
+      onDirtyChange={onDirtyChange}
+      onValidityChange={onValidityChange}
+      onDraftChange={onDraftChange}
+      {...props}
+    />,
   )
-  return { onSubmit, onDirtyChange }
+  return { onSubmit, onDirtyChange, onValidityChange, onDraftChange }
 }
 
 describe('TerminationForm', () => {
@@ -33,11 +43,11 @@ describe('TerminationForm', () => {
     expect(options).toEqual(['Choose a stop', 'Stop 2: Galle', 'Stop 3: Kandy'])
   })
 
-  it('shows no error before the user has touched the field', () => {
-    renderForm()
+  it('shows no error before the user has touched the field, and reports the form invalid', () => {
+    const { onValidityChange } = renderForm()
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Review termination' })).toBeDisabled()
+    expect(onValidityChange).toHaveBeenLastCalledWith(false)
   })
 
   it('shows the required error after the user leaves the field without choosing a stop', async () => {
@@ -51,17 +61,14 @@ describe('TerminationForm', () => {
     expect(screen.getByLabelText('Last stop served')).toHaveAttribute('aria-invalid', 'true')
   })
 
-  it('enables the review button once a stop is chosen, and submits the chosen stop', async () => {
+  it('reports the choice and the form valid once a stop is chosen', async () => {
     const user = userEvent.setup()
-    const { onSubmit } = renderForm()
+    const { onValidityChange, onDraftChange } = renderForm()
 
     await user.selectOptions(screen.getByLabelText('Last stop served'), 'Stop 2: Galle')
-    expect(screen.getByRole('button', { name: 'Review termination' })).toBeEnabled()
 
-    await user.click(screen.getByRole('button', { name: 'Review termination' }))
-
-    expect(onSubmit).toHaveBeenCalledTimes(1)
-    expect(onSubmit).toHaveBeenCalledWith({ lastStopSequence: 2 })
+    expect(onValidityChange).toHaveBeenLastCalledWith(true)
+    expect(onDraftChange).toHaveBeenLastCalledWith(2)
   })
 
   it('reports dirty as soon as a stop is chosen, and clean again when the choice is cleared', async () => {
@@ -75,11 +82,5 @@ describe('TerminationForm', () => {
 
     await user.selectOptions(screen.getByLabelText('Last stop served'), 'Choose a stop')
     expect(onDirtyChange).toHaveBeenLastCalledWith(false)
-  })
-
-  it('copies the button text and disables it while a publish is pending', () => {
-    renderForm({ isPending: true })
-
-    expect(screen.getByRole('button', { name: 'Publishing…' })).toBeDisabled()
   })
 })
