@@ -7,13 +7,12 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-# VITE_USE_REAL_* flags are read at build time (src/shared/api/mockSwitch.ts), so they are build args.
-ARG VITE_USE_REAL_OPERATIONS
-ARG VITE_USE_REAL_AUDIT
-ARG VITE_USE_REAL_STREAM
-ENV VITE_USE_REAL_OPERATIONS=$VITE_USE_REAL_OPERATIONS \
-    VITE_USE_REAL_AUDIT=$VITE_USE_REAL_AUDIT \
-    VITE_USE_REAL_STREAM=$VITE_USE_REAL_STREAM
+# VITE_* values are read at build time, so they are build args. The OIDC pair defaults to the local
+# Authentik blueprint when unset (src/features/auth/api/userManager.ts).
+ARG VITE_OIDC_AUTHORITY
+ARG VITE_OIDC_CLIENT_ID
+ENV VITE_OIDC_AUTHORITY=$VITE_OIDC_AUTHORITY \
+    VITE_OIDC_CLIENT_ID=$VITE_OIDC_CLIENT_ID
 RUN npm run build
 
 FROM nginx:1.27-alpine AS runtime

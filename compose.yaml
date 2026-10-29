@@ -12,9 +12,8 @@ services:
     build:
       context: .
       args:
-        VITE_USE_REAL_OPERATIONS: ${VITE_USE_REAL_OPERATIONS:-}
-        VITE_USE_REAL_AUDIT: ${VITE_USE_REAL_AUDIT:-}
-        VITE_USE_REAL_STREAM: ${VITE_USE_REAL_STREAM:-}
+        VITE_OIDC_AUTHORITY: ${VITE_OIDC_AUTHORITY:-}
+        VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID:-}
     environment:
       API_UPSTREAM: ${API_UPSTREAM:-http://host.docker.internal:5080}
     extra_hosts:

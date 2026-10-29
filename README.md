@@ -38,23 +38,76 @@ set `VITE_API_PROXY_TARGET`, for example `VITE_API_PROXY_TARGET=http://localhost
 | `npm test` | Vitest with Testing Library, in jsdom |
 | `npm run preview` | Serves the production build |
 
-Sign-in is a development placeholder: `/login` lets you pick the Network Controller or the Auditor role,
-stored in `sessionStorage`. It is not authentication. It is replaced by Authentik OIDC when the backend
-`add-identity-access` change lands, behind the `sessionService` interface in
-`src/features/auth/api/session.ts`.
+## Sign-in
 
-## Real and mocked endpoints
+Sign-in is real Authentik OIDC (authorization code + PKCE, S256), using the public client
+`smartrail-staff`. The API authorizes every staff request with the resulting bearer token, and the
+role comes from the token's `groups` claim.
 
-An endpoint the API does not have yet is served by a mock until its backend change lands. Each endpoint
-group has one Vite flag, set in `.env.local` (restart `npm run dev` after changing it):
+Authentik must be running on **http://localhost:9000** and the app must be served on
+**http://localhost:5173** — that origin is the only allowed redirect URI
+(`http://localhost:5173/...`). `npm run dev` uses 5173 by default; do not change the port.
 
-| Flag | Group it switches | Unset or any value other than `true` |
+Three staff users are seeded:
+
+| User | Role | Access |
 |---|---|---|
-| `VITE_USE_REAL_OPERATIONS=true` | publishing, corrections, journey live state | mocked |
-| `VITE_USE_REAL_AUDIT=true` | audit | mocked |
-| `VITE_USE_REAL_STREAM=true` | live updates | mocked |
+| `controller.mahesh` | `network_controller` | Live board, journey detail, network map, publishing |
+| `guard.ishara` | `guard` | Signed in, but no SmartRail Operations access (a "no access" screen) |
+| `auditor.wasantha` | `auditor` | Audit log only (read-only) |
 
-`src/shared/api/mockSwitch.ts` reads the flags. Reference data (stations) and the timetable are always real.
+Passwords come from the API stack's environment; they are not stored in this repository.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `VITE_OIDC_AUTHORITY` | `http://localhost:9000/application/o/smartrail-staff/` | OIDC authority (discovery) |
+| `VITE_OIDC_CLIENT_ID` | `smartrail-staff` | Public client ID |
+| `VITE_API_PROXY_TARGET` | `http://localhost:5080` | Dev-server `/api` proxy target |
+
+Tokens are kept in `sessionStorage`; closing the tab signs the user out. The 15-minute access token is
+renewed silently from the refresh token (`offline_access`). The only module that knows about OIDC is
+`src/features/auth/api/session.ts`, behind the `sessionService` interface.
+
+## Routes and roles
+
+The root path is a role landing page: a Network Controller goes to `/board`, an Auditor to `/audit`,
+and a signed-in role with no operations access meets the no-access screen.
+
+| Route | Who | What |
+|---|---|---|
+| `/board` | Network Controller | Today's live board. The API refuses the operations reads to an auditor (403), so the auditor's only link is Audit. |
+| `/journeys/:journeyId` | Network Controller | Detail, stop timeline (with the network's Interchange tags), change history. |
+| `/map` | Network Controller | Network map generated from `/network/lines`, with trains placed from the live journeys. |
+| `/audit`, `/audit/:entryId` | Auditor | Read-only audit record, one entry's detail and the chain integrity check. |
+| `/journeys/:journeyId/publish/delay`, `.../cancellation`, `.../platform-change`, `.../termination`, `.../correction` | Network Controller | Publish drawers over the detail page. Each is a deep-linkable URL. |
+| `/journeys/:journeyId/published/:changeId` | Network Controller | Confirmation page for the change that was just published. |
+
+The board, map and publish URLs render the 403 page for an auditor, which sends them back to `/audit`
+rather than offering a board they cannot open.
+
+## Live updates
+
+Every request now goes to the SmartRail API. There is no mock switch and no mock endpoint, so a broken
+integration fails visibly instead of being hidden behind sample data.
+
+The live board and journey detail subscribe to the API's public Server-Sent Events stream,
+`GET /api/v1/public/stream`. One stream is opened for a signed-in Network Controller (Auditors have no
+live data and open none). The server is the source of truth, so every journey event only invalidates the
+`['journeys']` queries and the pages read the facts again; no event payload is applied directly. The same
+refresh happens on a `reset` event and on a reconnect after a gap.
+
+The client (`src/shared/api/sseClient.ts`, with the frame parser in `sseFrames.ts`) is built on `fetch`
+and a `ReadableStream`, because the browser's `EventSource` cannot set `Last-Event-ID` or be closed with
+an `AbortController`. A dropped connection reconnects with exponential backoff and jitter (1 s up to 30 s,
+reset after a stable connection) and resends `Last-Event-ID`, so the API replays missed events in order.
+An unknown position makes the API send a `reset` event first; the client refetches and keeps listening.
+A `429` waits at least as long as its `Retry-After` header, and 45 seconds without any bytes — not even a
+keep-alive comment — counts as a dead connection.
+
+The navbar connection chip follows the stream: **Live** while it is open, **Degraded** while it is
+connecting or reconnecting, and **Offline** when the browser is offline or the stream closed after
+failing. The board's and detail's "Last updated" lines stay fetch-based and update when the refetch
+caused by an event finishes.
 
 ## Why it is built this way (and not otherwise)
 
@@ -92,8 +145,8 @@ Each one is either a fix from the blueprint's own list (section 14) or forced by
 - The duplicate `features/errors` pages were not created.
 - ESLint 10 replaces oxlint, with `@tanstack/eslint-plugin-query` wired in.
 - No MSW. The dev server proxy reaches the real API. `createHttpClient("")` is used as the blueprint has it.
-- No `cookie` dependency. The client sends a bearer token through `getAccessToken` when one exists, and it
-  does not send cookies.
+- No `cookie` dependency. The client sends the Authentik access token through the `getAccessToken`
+  registry in `src/shared/api/authBridge.ts`, and it does not send cookies.
 - `requesterId` and `authorId` are not copied from the blueprint.
 - The journey status is `null` ("not reported") until the API has a live status endpoint. See the
   `features/journeys` notes.
@@ -106,14 +159,15 @@ src/
   index.css              design tokens and global element styles
   app/                   router, query client, auth provider, guards, layout, route-level pages
   features/
-    auth/                sign-in page, identity placeholder, the User and Role types
+    auth/                OIDC session, sign-in and callback pages, the User and Role types
     journeys/            the Live board: types, service, hooks, pure filter, components, page
     audit/               Auditor-only stub page
   shared/
-    api/                 httpClient, ApiError, the client composition root
+    api/                 httpClient, ApiError, the client composition root, the SSE client and parser
+    live/                the one live-update effect and the connection-status store
     components/          Button, Badge
     ui/                  QueryState, EmptyState, ErrorPage, FilterBar, LoadingIndicator, ConfirmDialog
-    hooks/               useDebouncedValue
+    hooks/               useDebouncedValue, useConnectionStatus
     lib/                 railway time helpers
     preferences/         theme and motion
   test/setup.ts          Testing Library setup
@@ -130,4 +184,4 @@ src/
 
 ## Docker
 
-`docker compose up --build` builds the app and serves it with nginx on http://localhost:5173 (`OPSWEB_PORT` changes the port). Requests to `/api` are forwarded to `API_UPSTREAM` (default `http://host.docker.internal:5080`, the API from `SmartRail-API`'s compose), so the browser sees one origin. The `VITE_USE_REAL_*` flags are build arguments, set in the shell or an `.env` file before building.
+`docker compose up --build` builds the app and serves it with nginx on http://localhost:5173 (`OPSWEB_PORT` changes the port). Requests to `/api` are forwarded to `API_UPSTREAM` (default `http://host.docker.internal:5080`, the API from `SmartRail-API`'s compose), so the browser sees one origin. `VITE_*` values, including `VITE_OIDC_AUTHORITY` and `VITE_OIDC_CLIENT_ID`, are build arguments, set in the shell or an `.env` file before building. Sign-in still requires Authentik on http://localhost:9000 and the app on port 5173.
