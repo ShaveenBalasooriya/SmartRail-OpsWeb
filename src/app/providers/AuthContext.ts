@@ -1,10 +1,19 @@
 import { createContext, useContext } from 'react'
-import type { Role, User } from '@/features/auth/types'
+import type { SessionState } from '@/features/auth/api/session'
+import type { User } from '@/features/auth/types'
+
+export type CompletedSignInResult = {
+  returnTo: string
+  status: SessionState['status']
+}
 
 export type AuthContextValue = {
   currentUser: User | null
+  // True for a guard too: the person signed in, but currentUser is null because the role has no access.
+  isSignedIn: boolean
   isLoading: boolean
-  login: (role: Role) => Promise<User>
+  signIn: (returnTo?: string) => Promise<void>
+  completeSignIn: () => Promise<CompletedSignInResult>
   logout: () => Promise<void>
 }
 

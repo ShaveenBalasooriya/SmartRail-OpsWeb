@@ -15,8 +15,3 @@ export type User = {
   displayName: string
   role: Role
 }
-
-// Untrusted input (sessionStorage, a URL) is checked against the allow-list before use.
-export function isRole(value: string): value is Role {
-  return (ROLE_VALUES as string[]).includes(value)
-}

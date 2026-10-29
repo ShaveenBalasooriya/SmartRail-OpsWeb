@@ -8,8 +8,10 @@ import RequireRole from './RequireRole'
 function renderAt(role: Role) {
   const value: AuthContextValue = {
     currentUser: { id: `dev-${role}`, displayName: 'Test user', role },
+    isSignedIn: true,
     isLoading: false,
-    login: vi.fn(),
+    signIn: vi.fn(),
+    completeSignIn: vi.fn(),
     logout: vi.fn(),
   }
 
@@ -30,7 +32,7 @@ describe('RequireRole', () => {
   it('renders the forbidden state in place when the role is not allowed', () => {
     renderAt('network_controller')
 
-    expect(screen.getByRole('heading', { name: 'You do not have access to this page' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: "You don't have access to this page" })).toBeInTheDocument()
     expect(screen.queryByText('Audit content')).not.toBeInTheDocument()
   })
 
@@ -44,8 +46,10 @@ describe('RequireRole', () => {
   it('keeps an auditor off a publish route, with the forbidden state at that address', () => {
     const value: AuthContextValue = {
       currentUser: { id: 'dev-auditor', displayName: 'Test user', role: 'auditor' },
+      isSignedIn: true,
       isLoading: false,
-      login: vi.fn(),
+      signIn: vi.fn(),
+      completeSignIn: vi.fn(),
       logout: vi.fn(),
     }
 
@@ -61,7 +65,7 @@ describe('RequireRole', () => {
       </AuthContext.Provider>,
     )
 
-    expect(screen.getByRole('heading', { name: 'You do not have access to this page' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: "You don't have access to this page" })).toBeInTheDocument()
     expect(screen.queryByText('Delay form')).not.toBeInTheDocument()
   })
 })

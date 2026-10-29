@@ -84,3 +84,9 @@ export function apiErrorCodeFor(status: number): ApiErrorCode {
       return 'UNKNOWN'
   }
 }
+
+// A role the API does not allow. A screen that can hit this renders the app's forbidden page rather
+// than a retryable error, because retrying cannot change the signed-in person's role.
+export function isForbiddenRole(error: unknown): boolean {
+  return error instanceof ApiError && error.code === 'FORBIDDEN_ROLE'
+}

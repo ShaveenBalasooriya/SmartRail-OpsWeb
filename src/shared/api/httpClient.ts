@@ -10,9 +10,12 @@ const UNREACHABLE_MESSAGE = 'Cannot reach the server. Check your connection and 
 const UNREADABLE_MESSAGE = 'The server sent a response that could not be read.'
 
 export type HttpClientOptions = {
-  // Staff sign-in will send a bearer token (Authentik, add-identity-access). Cookies are not used,
-  // so `credentials` is left at the fetch default and not set here.
+  // Staff sign-in sends a bearer token (Authentik, add-identity-access). Cookies are not used, so
+  // `credentials` is left at the fetch default and not set here.
   getAccessToken?: () => string | null | Promise<string | null>
+  // Called once for a 401 on a request that carried a token, so a dead session ends instead of
+  // retrying every query against the API.
+  onUnauthorized?: () => void
 }
 
 // A factory rather than a singleton so a second origin is possible later without changing callers.
@@ -33,6 +36,10 @@ export function createHttpClient(baseUrl: string, options: HttpClientOptions = {
         throw new DOMException('The request was aborted.', 'AbortError')
       }
       throw new ApiError(0, 'UNKNOWN', UNREACHABLE_MESSAGE)
+    }
+
+    if (response.status === 401 && token) {
+      options.onUnauthorized?.()
     }
 
     return parseResponse<T>(response)
