@@ -7,9 +7,9 @@
 .main {
   flex: 1;
   width: 100%;
-  max-width: 1024px;
+  max-width: 1232px;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: 2rem 1.5rem;
 }
 
 /* Off-screen until it receives keyboard focus, then it appears at the top-left. */
@@ -27,4 +27,9 @@
 
 .skipLink:focus {
   top: 0.5rem;
+}
+
+/* The global link colour would otherwise override the button's own foreground on hover. */
+.skipLink:hover {
+  color: var(--btn-primary-text);
 }

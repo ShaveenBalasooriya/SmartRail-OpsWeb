@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { NavLink, useNavigate } from 'react-router'
-import { LogOut, Moon, Sun, Zap, ZapOff } from 'lucide-react'
+import { useId, useState } from 'react'
+import { Link, NavLink, useNavigate } from 'react-router'
+import { CircleUserRound, LogOut, Moon, Sun, Zap } from 'lucide-react'
 import { useAuth, useCurrentUser } from '@/app/providers/AuthContext'
 import { ROLE_LABELS, type Role } from '@/features/auth/types'
+import { useConnectionStatus } from '@/shared/hooks/useConnectionStatus'
 import {
   applyMotion,
   applyTheme,
@@ -22,25 +23,39 @@ type NavItem = {
 }
 
 // Links are filtered by role here. The route guards still enforce access; this only decides what is offered.
+// The API refuses an auditor on /operations/journeys (403), so the board is not offered to them until the
+// backend allows that read; the route and its forbidden page stay in place.
 const NAV_ITEMS: NavItem[] = [
-  { to: '/board', label: 'Live board', roles: ['network_controller', 'auditor'] },
+  { to: '/board', label: 'Live board', roles: ['network_controller'] },
+  { to: '/map', label: 'Network map', roles: ['network_controller'] },
   { to: '/audit', label: 'Audit', roles: ['auditor'] },
 ]
+
+const CONNECTION_LABELS = {
+  live: 'Live',
+  connecting: 'Connecting',
+  degraded: 'Degraded',
+  offline: 'Offline',
+} as const
 
 // Mounted only beneath RequireAuth, so the user is never null here.
 export default function Navbar() {
   const navigate = useNavigate()
   const currentUser = useCurrentUser()
   const { logout } = useAuth()
+  const connection = useConnectionStatus()
   const [theme, setTheme] = useState<Theme>(resolveInitialTheme)
   const [motion, setMotion] = useState<Motion>(resolveInitialMotion)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const profilePanelId = useId()
 
   const isDark = theme === 'dark'
   // One string feeds both aria-label and title so the accessible name and the tooltip cannot drift.
   // The toggle is not aria-pressed: its label already names the action, and a pressed state would announce the opposite.
   const themeLabel = isDark ? 'Switch to light mode' : 'Switch to dark mode'
   const isReduced = motion === 'reduced'
-  const motionLabel = isReduced ? 'Turn on animations' : 'Reduce animations'
+  const motionLabel = isReduced ? 'Animations reduced. Turn animations back on' : 'Reduce animations'
+  const profileLabel = `User profile: ${currentUser.displayName}`
 
   function toggleTheme() {
     const next: Theme = isDark ? 'light' : 'dark'
@@ -67,7 +82,12 @@ export default function Navbar() {
 
   return (
     <header className={styles.navbar}>
-      <div className={styles.brand}>SmartRail Operations</div>
+      <Link to="/" className={styles.brand} aria-label="SmartRail Operations home">
+        <span className={styles.mark} aria-hidden="true">
+          <Zap size={18} />
+        </span>
+        <span>SmartRail Operations</span>
+      </Link>
 
       <nav aria-label="Main" className={styles.nav}>
         <ul className={styles.links}>
@@ -85,6 +105,11 @@ export default function Navbar() {
       </nav>
 
       <div className={styles.controls}>
+        <span className={`${styles.connection} ${styles[connection]}`} role="status">
+          <span className={styles.connectionDot} aria-hidden="true" />
+          {CONNECTION_LABELS[connection]}
+        </span>
+
         <button
           type="button"
           className={styles.iconButton}
@@ -97,22 +122,57 @@ export default function Navbar() {
 
         <button
           type="button"
-          className={styles.iconButton}
+          className={`${styles.iconButton} ${isReduced ? styles.on : ''}`}
           onClick={toggleMotion}
+          aria-pressed={isReduced}
           aria-label={motionLabel}
           title={motionLabel}
         >
-          {isReduced ? <ZapOff aria-hidden="true" size={18} /> : <Zap aria-hidden="true" size={18} />}
+          <Zap aria-hidden="true" size={18} />
         </button>
 
-        <span className={styles.identity}>
-          <span className={styles.name}>{currentUser.displayName}</span>
-          <span className={styles.role}>{ROLE_LABELS[currentUser.role]}</span>
-        </span>
+        <span className={styles.role}>{ROLE_LABELS[currentUser.role]}</span>
 
-        <button type="button" className={styles.signOut} onClick={handleSignOut}>
+        <div
+          className={styles.profile}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setIsProfileOpen(false)
+            }
+          }}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+              setIsProfileOpen(false)
+            }
+          }}
+        >
+          <button
+            type="button"
+            className={styles.iconButton}
+            onClick={() => setIsProfileOpen((isOpen) => !isOpen)}
+            aria-label={profileLabel}
+            aria-expanded={isProfileOpen}
+            aria-controls={profilePanelId}
+            title={profileLabel}
+          >
+            <CircleUserRound aria-hidden="true" size={18} />
+          </button>
+          {isProfileOpen && (
+            <div id={profilePanelId} className={styles.profilePanel}>
+              <span className={styles.profileName}>{currentUser.displayName}</span>
+              <span className={styles.profileRole}>{ROLE_LABELS[currentUser.role]}</span>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className={`${styles.iconButton} ${styles.signOut}`}
+          onClick={handleSignOut}
+          aria-label="Sign out"
+          title="Sign out"
+        >
           <LogOut aria-hidden="true" size={18} />
-          <span>Sign out</span>
         </button>
       </div>
     </header>

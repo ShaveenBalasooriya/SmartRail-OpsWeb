@@ -26,14 +26,14 @@ describe('QueryState', () => {
     expect(children).not.toHaveBeenCalled()
   })
 
-  it('shows the error message and retries when the user asks', async () => {
+  it('shows the fixed error copy and retries when the user asks', async () => {
     const onRetry = vi.fn()
 
     render(
       <QueryState<string[]>
         isPending={false}
         isError
-        error={new Error('The board could not load.')}
+        error={new Error('Internal detail that must not reach the screen.')}
         data={undefined}
         onRetry={onRetry}
         isEmpty={ITEMS_EMPTY}
@@ -42,7 +42,8 @@ describe('QueryState', () => {
       />,
     )
 
-    expect(screen.getByRole('alert')).toHaveTextContent('The board could not load.')
+    expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong. Please try again.')
+    expect(screen.queryByText('Internal detail that must not reach the screen.')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(onRetry).toHaveBeenCalledTimes(1)
   })

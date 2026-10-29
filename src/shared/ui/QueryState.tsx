@@ -22,6 +22,7 @@ type QueryStateProps<T> = {
 
 // Every route-level query renders through here so each page has the same four states: pending,
 // error, empty and data. The render prop receives the narrowed data, so callers need no non-null assertion.
+// The error state keeps one fixed sentence rather than the exception text, which can carry internals.
 export default function QueryState<T>({
   isPending,
   isError,
@@ -45,7 +46,7 @@ export default function QueryState<T>({
 
     return (
       <div role="alert" className={styles.error}>
-        <p className={styles.message}>{error ? error.message : 'Something went wrong. Please try again.'}</p>
+        <p className={styles.message}>Something went wrong. Please try again.</p>
         {onRetry && (
           <Button variant="secondary" onClick={() => onRetry()}>
             Try again

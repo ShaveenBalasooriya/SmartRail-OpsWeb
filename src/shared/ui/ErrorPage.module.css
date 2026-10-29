@@ -4,7 +4,11 @@
   padding: 3rem 1.5rem;
 }
 
+/* The design's error card: a surface on the app background with its contents in one vertical flow. */
 .card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   width: 100%;
   max-width: 32rem;
   padding: 2rem;
@@ -13,28 +17,48 @@
   background: var(--bg-surface);
 }
 
+.code {
+  align-self: flex-start;
+  padding: 0.125rem 0.625rem;
+  border-radius: 999px;
+  background: var(--status-terminated-bg);
+  color: var(--status-terminated-text);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
 .title {
   font-size: var(--text-xl);
 }
 
 .message {
-  margin: 0.75rem 0 0;
+  margin: 0;
   color: var(--text-secondary);
+}
+
+.message p {
+  margin: 0;
+}
+
+.message p + p {
+  margin-top: 0.75rem;
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin-top: 1.5rem;
+  margin-top: 0.5rem;
 }
 
-/* Links in the actions look like buttons, so the page has one primary action style. */
+/* Links in the actions look like buttons, so the page has one primary action style. A second
+   action is the quieter alternative the design shows beside it. */
 .actions a {
   display: inline-flex;
   align-items: center;
   min-height: 2.5rem;
   padding: 0.5rem 1rem;
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: var(--btn-primary-bg);
   color: var(--btn-primary-text);
@@ -45,4 +69,16 @@
 
 .actions a:hover {
   background: var(--btn-primary-hover);
+  color: var(--btn-primary-text);
+}
+
+.actions a:not(:first-child) {
+  border-color: var(--border-color);
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+}
+
+.actions a:not(:first-child):hover {
+  background: var(--btn-secondary-hover);
+  color: var(--btn-secondary-text);
 }
