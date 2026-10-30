@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseMinutes, validateDelay, validatePlatformChange, validateTermination } from './validateChange'
 
+const LIMITS = { minMinutes: 1, maxMinutes: 720 }
 const MINUTES_MESSAGE = 'Enter a whole number of minutes from 1 to 720.'
 
 describe('parseMinutes', () => {
@@ -21,25 +22,40 @@ describe('parseMinutes', () => {
 
 describe('validateDelay', () => {
   it('accepts a chosen stop and minutes at the bounds 1 and 720', () => {
-    expect(validateDelay({ fromSequence: 2, minutesText: '1' })).toEqual({ fromSequence: null, minutes: null })
-    expect(validateDelay({ fromSequence: 2, minutesText: '720' })).toEqual({
+    expect(validateDelay({ fromSequence: 2, minutesText: '1', limits: LIMITS })).toEqual({
+      fromSequence: null,
+      minutes: null,
+    })
+    expect(validateDelay({ fromSequence: 2, minutesText: '720', limits: LIMITS })).toEqual({
       fromSequence: null,
       minutes: null,
     })
   })
 
   it.each(['0', '721', '1.5', '', '   ', 'abc'])('rejects the minutes %j with the spec message', (minutesText) => {
-    expect(validateDelay({ fromSequence: 2, minutesText }).minutes).toBe(MINUTES_MESSAGE)
+    expect(validateDelay({ fromSequence: 2, minutesText, limits: LIMITS }).minutes).toBe(MINUTES_MESSAGE)
+  })
+
+  it('takes the range and its message from the supplied limits', () => {
+    const limits = { minMinutes: 5, maxMinutes: 60 }
+
+    expect(validateDelay({ fromSequence: 2, minutesText: '5', limits }).minutes).toBeNull()
+    expect(validateDelay({ fromSequence: 2, minutesText: '4', limits }).minutes).toBe(
+      'Enter a whole number of minutes from 5 to 60.',
+    )
+    expect(validateDelay({ fromSequence: 2, minutesText: '61', limits }).minutes).toBe(
+      'Enter a whole number of minutes from 5 to 60.',
+    )
   })
 
   it('requires a stop', () => {
-    expect(validateDelay({ fromSequence: null, minutesText: '5' }).fromSequence).toBe(
+    expect(validateDelay({ fromSequence: null, minutesText: '5', limits: LIMITS }).fromSequence).toBe(
       'Choose the stop the delay starts at.',
     )
   })
 
   it('reports both fields together when both are wrong', () => {
-    expect(validateDelay({ fromSequence: null, minutesText: '0' })).toEqual({
+    expect(validateDelay({ fromSequence: null, minutesText: '0', limits: LIMITS })).toEqual({
       fromSequence: 'Choose the stop the delay starts at.',
       minutes: MINUTES_MESSAGE,
     })

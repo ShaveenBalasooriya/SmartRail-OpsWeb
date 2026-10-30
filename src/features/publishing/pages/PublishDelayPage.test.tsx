@@ -11,11 +11,13 @@ import { getStations } from '@/features/stations/api/stations'
 import type { Station } from '@/features/stations/types'
 import { ApiError } from '@/shared/api/ApiError'
 import { publishDelay } from '../api/publish'
+import { getPublishingRules } from '../api/publishingRules'
 import type { PublishedChange } from '../types'
 import PublishDelayPage from './PublishDelayPage'
 import PublishedChangePage from './PublishedChangePage'
 
 vi.mock('../api/publish')
+vi.mock('../api/publishingRules')
 vi.mock('@/features/journeys/api/journeys')
 vi.mock('@/features/stations/api/stations')
 
@@ -158,6 +160,7 @@ describe('PublishDelayPage', () => {
     vi.resetAllMocks()
     vi.mocked(getJourney).mockResolvedValue(detail)
     vi.mocked(getStations).mockResolvedValue(stations)
+    vi.mocked(getPublishingRules).mockResolvedValue({ delay: { minMinutes: 1, maxMinutes: 720 } })
   })
 
   it('opens the delay drawer from its route, with the journey detail still mounted behind it', async () => {
@@ -193,6 +196,57 @@ describe('PublishDelayPage', () => {
     await user.click(screen.getByLabelText('Delay starts at stop'))
     await user.tab()
     expect(screen.getByText('Choose the stop the delay starts at.')).toBeInTheDocument()
+  })
+
+  it('takes the hint and the range message from the publishing rules', async () => {
+    const user = userEvent.setup()
+    vi.mocked(getPublishingRules).mockResolvedValue({ delay: { minMinutes: 5, maxMinutes: 60 } })
+    renderPage()
+
+    await screen.findByRole('dialog', { name: 'Publish a delay' })
+    expect(await screen.findByText('Whole minutes, 5 to 60.')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Delay in minutes'), '4')
+    await user.tab()
+    expect(screen.getByText('Enter a whole number of minutes from 5 to 60.')).toBeInTheDocument()
+  })
+
+  it('keeps the form loading and Review disabled until the publishing rules arrive', async () => {
+    let resolveRules: (value: { delay: { minMinutes: number; maxMinutes: number } }) => void = () => {}
+    vi.mocked(getPublishingRules).mockReturnValue(
+      new Promise((resolve) => {
+        resolveRules = resolve
+      }),
+    )
+    renderPage()
+
+    await screen.findByRole('dialog', { name: 'Publish a delay' })
+    expect(await screen.findByRole('status')).toHaveTextContent('Loading…')
+    expect(screen.getByRole('button', { name: 'Review delay' })).toBeDisabled()
+    expect(screen.queryByLabelText('Delay in minutes')).not.toBeInTheDocument()
+
+    resolveRules({ delay: { minMinutes: 1, maxMinutes: 720 } })
+
+    expect(await screen.findByLabelText('Delay in minutes')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Review delay' })).toBeDisabled()
+  })
+
+  it('shows a retryable error and keeps Review disabled when the publishing rules fail', async () => {
+    const user = userEvent.setup()
+    vi.mocked(getPublishingRules).mockRejectedValueOnce(
+      new ApiError(503, 'UNKNOWN', 'The publishing rules are unavailable.'),
+    )
+    renderPage()
+
+    await screen.findByRole('dialog', { name: 'Publish a delay' })
+    expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong. Please try again.')
+    expect(screen.getByRole('button', { name: 'Review delay' })).toBeDisabled()
+    expect(screen.queryByLabelText('Delay in minutes')).not.toBeInTheDocument()
+
+    vi.mocked(getPublishingRules).mockResolvedValue({ delay: { minMinutes: 1, maxMinutes: 720 } })
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByLabelText('Delay in minutes')).toBeInTheDocument()
   })
 
   it('previews the downstream times and captions the estimate as server-calculated', async () => {

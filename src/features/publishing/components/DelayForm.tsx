@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import FormField from '@/shared/ui/FormField'
-import { DELAY_MAX_MINUTES, DELAY_MIN_MINUTES, type DelayInput } from '../types'
+import type { DelayInput, DelayLimits } from '../types'
 import type { StopOption } from '../lib/stopOptions'
 import { parseMinutes, validateDelay } from '../lib/validateChange'
 import styles from './DelayForm.module.css'
@@ -14,6 +14,8 @@ type DelayFormProps = {
   // The drawer's footer button submits this form by id, so the actions sit in the design's sticky row.
   formId: string
   stops: StopOption[]
+  // The API's delay bounds, already loaded by the page. The form never carries a range of its own.
+  limits: DelayLimits
   onSubmit: (input: DelayInput) => void
   onDirtyChange?: (isDirty: boolean) => void
   onValidityChange?: (isValid: boolean) => void
@@ -28,6 +30,7 @@ type DelayField = 'fromSequence' | 'minutes'
 export default function DelayForm({
   formId,
   stops,
+  limits,
   onSubmit,
   onDirtyChange,
   onValidityChange,
@@ -39,7 +42,7 @@ export default function DelayForm({
   const [attemptedSubmit, setAttemptedSubmit] = useState(false)
 
   const isDirty = fromSequence !== null || minutesText !== ''
-  const errors = validateDelay({ fromSequence, minutesText })
+  const errors = validateDelay({ fromSequence, minutesText, limits })
   const isValid = errors.fromSequence === null && errors.minutes === null
 
   useEffect(() => {
@@ -97,7 +100,7 @@ export default function DelayForm({
       <FormField
         id="delay-minutes"
         label="Delay in minutes"
-        hint={`Whole minutes, ${DELAY_MIN_MINUTES} to ${DELAY_MAX_MINUTES}.`}
+        hint={`Whole minutes, ${limits.minMinutes} to ${limits.maxMinutes}.`}
         error={shownError('minutes')}
       >
         {(a11y) => (

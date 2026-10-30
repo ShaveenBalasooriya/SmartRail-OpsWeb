@@ -1,4 +1,4 @@
-import { DELAY_MAX_MINUTES, DELAY_MIN_MINUTES } from '../types'
+import type { DelayLimits } from '../types'
 
 export type DelayErrors = {
   fromSequence: string | null
@@ -10,7 +10,8 @@ export type PlatformChangeErrors = {
   platformId: string | null
 }
 
-const MINUTES_MESSAGE = `Enter a whole number of minutes from ${DELAY_MIN_MINUTES} to ${DELAY_MAX_MINUTES}.`
+const MINUTES_MESSAGE = (limits: DelayLimits) =>
+  `Enter a whole number of minutes from ${limits.minMinutes} to ${limits.maxMinutes}.`
 
 // null means the text is not a whole number. Only digits are accepted, so "1.5", "1e2" and "" all fail.
 // The range is checked by the validator, not here, so the caller can tell "not a number" from "too big".
@@ -25,16 +26,19 @@ export function parseMinutes(text: string): number | null {
 export function validateDelay({
   fromSequence,
   minutesText,
+  limits,
 }: {
   fromSequence: number | null
   minutesText: string
+  limits: DelayLimits
 }): DelayErrors {
   const minutes = parseMinutes(minutesText)
-  const isOutOfRange = minutes === null || minutes < DELAY_MIN_MINUTES || minutes > DELAY_MAX_MINUTES
+  const isOutOfRange =
+    minutes === null || minutes < limits.minMinutes || minutes > limits.maxMinutes
 
   return {
     fromSequence: fromSequence === null ? 'Choose the stop the delay starts at.' : null,
-    minutes: isOutOfRange ? MINUTES_MESSAGE : null,
+    minutes: isOutOfRange ? MINUTES_MESSAGE(limits) : null,
   }
 }
 

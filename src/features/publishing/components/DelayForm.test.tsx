@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest'
 import type { StopOption } from '../lib/stopOptions'
 import DelayForm from './DelayForm'
 
+const LIMITS = { minMinutes: 1, maxMinutes: 720 }
+
 const stops: StopOption[] = [
   { sequence: 2, stationId: 'st-galle', stationName: 'Galle', platformId: null, label: 'Stop 2: Galle' },
   { sequence: 3, stationId: 'st-kandy', stationName: 'Kandy', platformId: null, label: 'Stop 3: Kandy' },
@@ -18,6 +20,7 @@ function renderForm(props: Partial<Parameters<typeof DelayForm>[0]> = {}) {
     <DelayForm
       formId="delay-form"
       stops={stops}
+      limits={LIMITS}
       onSubmit={onSubmit}
       onDirtyChange={onDirtyChange}
       onValidityChange={onValidityChange}

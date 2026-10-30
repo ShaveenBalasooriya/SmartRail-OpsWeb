@@ -37,9 +37,12 @@ export type PublishedChange = {
   corrected: boolean
 }
 
-// The spec says whole minutes from 1 to 720. The API enforces the same range, so the form shows it first.
-export const DELAY_MIN_MINUTES = 1
-export const DELAY_MAX_MINUTES = 720
+// The bounds the API publishes at GET /api/v1/operations/publishing-rules. The API enforces them, so
+// the form reads them from there instead of carrying a copy of the railway's limits.
+export type DelayLimits = {
+  minMinutes: number
+  maxMinutes: number
+}
 
 export type DelayInput = {
   fromSequence: number

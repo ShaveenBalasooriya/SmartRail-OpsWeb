@@ -17,16 +17,22 @@ import ReachList from '../components/ReachList'
 import ReviewList from '../components/ReviewList'
 import UnsavedChangesDialog from '../components/UnsavedChangesDialog'
 import { usePublishDelay } from '../hooks/usePublishDelay'
+import { usePublishingRules } from '../hooks/usePublishingRules'
 import { REACH_AUDIENCES } from '../lib/audiences'
 import { toDownstreamPreview } from '../lib/delayPreview'
 import { publishErrorMessage } from '../lib/publishErrorMessage'
 import { toNotDepartedStopOptions } from '../lib/stopOptions'
 import { parseMinutes } from '../lib/validateChange'
-import type { DelayInput } from '../types'
+import type { DelayInput, DelayLimits } from '../types'
 import styles from './PublishDelayPage.module.css'
 
 const FORM_ID = 'publish-delay-form'
 const EMPTY_DRAFT: DelayDraft = { fromSequence: null, minutesText: '' }
+
+type DelayFormData = {
+  journey: JourneyDetail
+  limits: DelayLimits
+}
 
 // The delay drawer: the journey detail stays mounted behind it, because the drawer is a child route of the
 // detail route. The form holds a draft. Nothing is sent until the review dialog confirms it, so a failed
@@ -37,6 +43,7 @@ export default function PublishDelayPage() {
   const publisher = useCurrentUser()
   const journey = useJourney(journeyId)
   const stations = useStations()
+  const rules = usePublishingRules()
   const stationIndex = useMemo(() => indexStations(stations.data ?? []), [stations.data])
   // A delay can only start at a calling stop the train has not left; the server refuses anything else.
   const stops = useMemo(
@@ -62,13 +69,11 @@ export default function PublishDelayPage() {
   const handleDraftChange = useCallback((value: DelayDraft) => setDraft(value), [])
 
   const minutes = parseMinutes(draft.minutesText)
-  const previewRows = useMemo(
-    () =>
-      journey.data === undefined || draft.fromSequence === null || minutes === null
-        ? []
-        : toDownstreamPreview(journey.data.stops, draft.fromSequence, minutes),
-    [journey.data, draft.fromSequence, minutes],
-  )
+
+  const reviewData: DelayFormData | undefined =
+    journey.data === undefined || rules.data === undefined
+      ? undefined
+      : { journey: journey.data, limits: rules.data.delay }
 
   const reviewedStop = stops.find((stop) => stop.sequence === reviewDraft?.fromSequence)
   const serviceName = journey.data?.serviceName ?? 'This journey'
@@ -110,7 +115,11 @@ export default function PublishDelayPage() {
             <Button variant="secondary" onClick={close}>
               Cancel
             </Button>
-            <Button type="submit" form={FORM_ID} disabled={!isValid || publish.isPending}>
+            <Button
+              type="submit"
+              form={FORM_ID}
+              disabled={!isValid || publish.isPending || rules.data === undefined}
+            >
               {publish.isPending ? 'Publishing…' : 'Review delay'}
             </Button>
           </>
@@ -118,21 +127,28 @@ export default function PublishDelayPage() {
       >
         {stations.isError && <p className={styles.note}>Station names could not be loaded.</p>}
 
-        <QueryState<JourneyDetail>
-          isPending={journey.isPending || stations.isPending}
-          isError={journey.isError && journey.data === undefined}
-          error={journey.error}
-          data={journey.data}
-          onRetry={journey.refetch}
+        <QueryState<DelayFormData>
+          isPending={journey.isPending || stations.isPending || rules.isPending}
+          isError={
+            (journey.isError && journey.data === undefined) ||
+            (rules.isError && rules.data === undefined)
+          }
+          error={journey.error ?? rules.error}
+          data={reviewData}
+          onRetry={() => {
+            void journey.refetch()
+            void rules.refetch()
+          }}
           isEmpty={() => false}
           emptyTitle="Journey not found"
           notFoundTitle="Journey not found"
         >
-          {() => (
+          {({ journey: journeyDetail, limits }) => (
             <>
               <DelayForm
                 formId={FORM_ID}
                 stops={stops}
+                limits={limits}
                 onSubmit={handleSubmit}
                 onDirtyChange={handleDirtyChange}
                 onValidityChange={handleValidityChange}
@@ -140,7 +156,11 @@ export default function PublishDelayPage() {
               />
 
               <DelayPreview
-                rows={previewRows}
+                rows={
+                  draft.fromSequence === null || minutes === null
+                    ? []
+                    : toDownstreamPreview(journeyDetail.stops, draft.fromSequence, minutes)
+                }
                 hasSelection={draft.fromSequence !== null && minutes !== null}
               />
 
