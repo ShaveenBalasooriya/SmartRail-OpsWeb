@@ -20,6 +20,11 @@
   width: 1.25rem;
   height: 0.375rem;
   border-radius: 999px;
+  background: var(--line-colour);
+}
+
+:global([data-theme='dark']) .swatch {
+  background: var(--line-colour-dark);
 }
 
 /* The same shapes the table and the map use, so the words match the marks. */

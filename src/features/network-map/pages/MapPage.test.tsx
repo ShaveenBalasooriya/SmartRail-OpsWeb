@@ -16,6 +16,7 @@ vi.mock('@/features/journeys/api/journeys')
 const coastal: Line = {
   id: 'line-coa',
   code: 'COA',
+  color: '#1d4ed8',
   name: 'Coastal Line',
   stations: [
     { stationId: 'st-colombo-fort', code: 'CMB', name: 'Colombo Fort', sequence: 1 },
@@ -29,6 +30,7 @@ const coastal: Line = {
 const main: Line = {
   id: 'line-mai',
   code: 'MAI',
+  color: '#0f766e',
   name: 'Main Line',
   stations: [
     { stationId: 'st-colombo-fort', code: 'CMB', name: 'Colombo Fort', sequence: 1 },

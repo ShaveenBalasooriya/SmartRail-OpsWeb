@@ -24,6 +24,20 @@
 
 .lineName {
   font: 700 13px var(--font-sans);
+  fill: var(--line-stroke);
+}
+
+/* The data supplies both hexes as custom properties; only the theme picks between them. */
+.lineGroup {
+  --line-stroke: var(--line-colour);
+}
+
+:global([data-theme='dark']) .lineGroup {
+  --line-stroke: var(--line-colour-dark);
+}
+
+.linePath {
+  stroke: var(--line-stroke);
 }
 
 .stations circle {

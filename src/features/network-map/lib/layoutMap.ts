@@ -30,8 +30,8 @@ export type LineGeometry = {
   id: string
   code: string
   name: string
-  // A CSS custom-property reference such as var(--line-main). The palette lives in index.css, so this
-  // file never carries a colour literal.
+  // The line's own lowercase #rrggbb from the API. The component turns it into a CSS custom property
+  // and derives the dark-theme variant, so this module carries no palette and no colour literal.
   colour: string
   rowY: number
   // The side the line's name is written on. The first row's name is above it, the second row's below,
@@ -79,16 +79,6 @@ const LINE_NAME_ABOVE_OFFSET = 58
 const LINE_NAME_BELOW_OFFSET = 68
 const STATION_RADIUS = 7
 const INTERCHANGE_RADIUS = 15
-
-// The design gives the two seeded lines their own colours. The API sends no colour, so those two codes
-// keep the tokens the design used and any other line takes the next palette entry by position. The
-// tokens themselves are in index.css, light and dark.
-const LINE_COLOUR_BY_CODE: Readonly<Record<string, string>> = {
-  MAI: 'var(--line-main)',
-  COA: 'var(--line-coast)',
-}
-
-const LINE_COLOUR_PALETTE = ['var(--line-3)', 'var(--line-4)'] as const
 
 export function layoutMap(lines: readonly Line[]): MapLayout {
   // The API order is kept: it is the design's "first line upward". The row gap only widens for a
@@ -138,7 +128,7 @@ export function layoutMap(lines: readonly Line[]): MapLayout {
       id: line.id,
       code: line.code,
       name: line.name,
-      colour: lineColour(line.code, index),
+      colour: line.color,
       rowY,
       labelSide,
       cardSide: labelSide === 'above' ? 'below' : 'above',
@@ -232,6 +222,4 @@ function buildHubs(
   })
 }
 
-function lineColour(code: string, index: number): string {
-  return LINE_COLOUR_BY_CODE[code] ?? LINE_COLOUR_PALETTE[index % LINE_COLOUR_PALETTE.length]
-}
+

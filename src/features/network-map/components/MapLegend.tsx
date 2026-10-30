@@ -1,3 +1,4 @@
+import { lineColourStyle } from '@/shared/lib/lineColour'
 import type { LineGeometry } from '../lib/layoutMap'
 import styles from './MapLegend.module.css'
 
@@ -12,7 +13,11 @@ export default function MapLegend({ lines }: MapLegendProps) {
     <ul className={styles.legend} aria-label="Legend">
       {lines.map((line) => (
         <li key={line.id}>
-          <span className={styles.swatch} style={{ background: line.colour }} aria-hidden="true" />
+          <span
+            className={styles.swatch}
+            style={lineColourStyle(line.colour)}
+            aria-hidden="true"
+          />
           {line.name}
         </li>
       ))}

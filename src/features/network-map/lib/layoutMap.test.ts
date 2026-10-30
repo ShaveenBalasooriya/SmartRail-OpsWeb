@@ -4,10 +4,16 @@ import { layoutMap } from './layoutMap'
 
 // Real seeded names, but the function never sees them as special: the same tests would pass with any
 // list, and the last case proves it.
-function makeLine(code: string, name: string, stationNames: readonly string[]): Line {
+function makeLine(
+  code: string,
+  name: string,
+  stationNames: readonly string[],
+  color: string,
+): Line {
   return {
     id: `line-${code.toLowerCase()}`,
     code,
+    color,
     name,
     stations: stationNames.map((stationName, index) => ({
       stationId: `st-${stationName.toLowerCase().replace(/[^a-z]+/g, '-')}`,
@@ -18,21 +24,19 @@ function makeLine(code: string, name: string, stationNames: readonly string[]): 
   }
 }
 
-const coastal = makeLine('COA', 'Coastal Line', [
-  'Colombo Fort',
-  'Kollupitiya',
-  'Bambalapitiya',
-  'Wellawatte',
-  'Mount Lavinia',
-])
+const coastal = makeLine(
+  'COA',
+  'Coastal Line',
+  ['Colombo Fort', 'Kollupitiya', 'Bambalapitiya', 'Wellawatte', 'Mount Lavinia'],
+  '#1d4ed8',
+)
 
-const main = makeLine('MAI', 'Main Line', [
-  'Colombo Fort',
-  'Maradana',
-  'Dematagoda',
-  'Kelaniya',
-  'Ragama',
-])
+const main = makeLine(
+  'MAI',
+  'Main Line',
+  ['Colombo Fort', 'Maradana', 'Dematagoda', 'Kelaniya', 'Ragama'],
+  '#0f766e',
+)
 
 describe('layoutMap', () => {
   it('draws a shared station once, as a larger interchange at the left', () => {
@@ -112,7 +116,7 @@ describe('layoutMap', () => {
   })
 
   it('grows with the network: three lines share evenly spaced rows', () => {
-    const hill = makeLine('HIL', 'Hill Line', ['Colombo Fort', 'Kandy', 'Nanu Oya'])
+    const hill = makeLine('HIL', 'Hill Line', ['Colombo Fort', 'Kandy', 'Nanu Oya'], '#b45309')
     const layout = layoutMap([coastal, main, hill])
     const rows = layout.lines.map((line) => line.rowY)
 
@@ -120,19 +124,17 @@ describe('layoutMap', () => {
     expect(rows[1] - rows[0]).toBe(rows[2] - rows[1])
     expect(layout.hubs).toHaveLength(1)
     expect(layout.hubs[0]?.y).toBe((rows[0] + rows[2]) / 2)
-    // A line beyond the design's two takes the additional palette tokens, by position.
-    expect(layout.lines[2]?.colour).toBe('var(--line-3)')
   })
 
-  it('keeps the design tokens for the two seeded line codes', () => {
+  it('takes each line colour from the API data, whatever the code', () => {
     const layout = layoutMap([coastal, main])
 
-    expect(layout.lines[0]?.colour).toBe('var(--line-coast)')
-    expect(layout.lines[1]?.colour).toBe('var(--line-main)')
+    expect(layout.lines[0]?.colour).toBe('#1d4ed8')
+    expect(layout.lines[1]?.colour).toBe('#0f766e')
   })
 
   it('draws any network shape, without a station name or coordinate written in', () => {
-    const custom = makeLine('XYZ', 'Test Line', ['Alpha', 'Beta'])
+    const custom = makeLine('XYZ', 'Test Line', ['Alpha', 'Beta'], '#7e22ce')
     const layout = layoutMap([custom])
     const line = layout.lines[0]
 

@@ -4,10 +4,16 @@ import type { Line } from '@/features/stations/types'
 import { layoutMap, type StationPoint } from './layoutMap'
 import { describeMap, placeTrains, type MapTrain } from './placeTrains'
 
-function makeLine(code: string, name: string, stationNames: readonly string[]): Line {
+function makeLine(
+  code: string,
+  name: string,
+  stationNames: readonly string[],
+  color = '#0f766e',
+): Line {
   return {
     id: `line-${code.toLowerCase()}`,
     code,
+    color,
     name,
     stations: stationNames.map((stationName, index) => ({
       stationId: `st-${stationName.toLowerCase().replace(/[^a-z]+/g, '-')}`,

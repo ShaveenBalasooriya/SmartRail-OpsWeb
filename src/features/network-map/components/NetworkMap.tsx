@@ -1,6 +1,7 @@
 import { useId, useMemo } from 'react'
 import type { Journey } from '@/features/journeys/types'
 import type { Line } from '@/features/stations/types'
+import { lineColourStyle } from '@/shared/lib/lineColour'
 import { layoutMap } from '../lib/layoutMap'
 import { describeMap, placeTrains, type MapTrain, type TrainCard } from '../lib/placeTrains'
 import MapLegend from './MapLegend'
@@ -45,22 +46,17 @@ export default function NetworkMap({ lines, journeys }: NetworkMapProps) {
           </defs>
 
           {layout.lines.map((line) => (
-            <g key={line.id}>
-              <text
-                className={styles.lineName}
-                x={line.label.x}
-                y={line.label.y}
-                style={{ fill: line.colour }}
-              >
+            <g key={line.id} className={styles.lineGroup} style={lineColourStyle(line.colour)}>
+              <text className={styles.lineName} x={line.label.x} y={line.label.y}>
                 {line.name}
               </text>
               <path
+                className={styles.linePath}
                 d={line.path}
                 fill="none"
                 strokeWidth={6}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                style={{ stroke: line.colour }}
               />
             </g>
           ))}
