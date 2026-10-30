@@ -7,6 +7,7 @@ const dtoFixture = [
   {
     id: '0196f2a0-0000-7000-8000-0000000000a1',
     code: 'COA',
+    color: '#1d4ed8',
     name: 'Coastal Line',
     stations: [
       { stationId: '0196f2a0-0000-7000-8000-000000000101', code: 'CMB', name: 'Colombo Fort', sequence: 1 },
@@ -19,6 +20,7 @@ const dtoFixture = [
   {
     id: '0196f2a0-0000-7000-8000-0000000000a2',
     code: 'MAI',
+    color: '#0f766e',
     name: 'Main Line',
     stations: [
       { stationId: '0196f2a0-0000-7000-8000-000000000101', code: 'CMB', name: 'Colombo Fort', sequence: 1 },
@@ -53,6 +55,7 @@ describe('getLines', () => {
     expect(lines[0]).toEqual({
       id: '0196f2a0-0000-7000-8000-0000000000a1',
       code: 'COA',
+      color: '#1d4ed8',
       name: 'Coastal Line',
       stations: [
         { stationId: '0196f2a0-0000-7000-8000-000000000101', code: 'CMB', name: 'Colombo Fort', sequence: 1 },
@@ -80,5 +83,20 @@ describe('getLines', () => {
     const lines = await getLines()
 
     expect(lines).toEqual([])
+  })
+
+  it.each([
+    ['missing', undefined],
+    ['uppercase', '#1D4ED8'],
+    ['short', '#1d4ed'],
+    ['not a colour', 'blue'],
+  ])('rejects a line whose colour is %s instead of guessing one', async (_label, color) => {
+    const broken = [{ ...dtoFixture[0], color }]
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(broken)))
+
+    await expect(getLines()).rejects.toMatchObject({
+      name: 'ApiError',
+      message: expect.stringContaining('no valid colour'),
+    })
   })
 })

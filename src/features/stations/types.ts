@@ -10,6 +10,8 @@ export type Platform = {
 export type StationLine = {
   id: string
   code: string
+  // Lowercase #rrggbb, supplied by the API like every other line colour.
+  color: string
   name: string
 }
 
@@ -36,6 +38,8 @@ export type LineStation = {
 export type Line = {
   id: string
   code: string
+  // Lowercase #rrggbb, supplied by the API. The map never invents a colour for a line.
+  color: string
   name: string
   stations: LineStation[]
 }

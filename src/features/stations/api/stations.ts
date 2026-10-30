@@ -1,8 +1,10 @@
+import { invalidResponse } from '@/shared/api/invalidResponse'
 import { api } from '@/shared/api/client'
+import { isLineColour } from '@/shared/lib/lineColour'
 import type { Platform, Station, StationLine } from '../types'
 
 // Wire shapes of SmartRail-API StationDto, PlatformDto and StationLineDto (openapi/v1.json, checked
-// 2026-10-22), kept local to this file so a backend change touches only this mapping.
+// 2026-10-30), kept local to this file so a backend change touches only this mapping.
 type StationDtoWire = {
   id: string
   code: string
@@ -21,6 +23,7 @@ type PlatformDtoWire = {
 type StationLineDtoWire = {
   id: string
   code: string
+  color: string
   name: string
 }
 
@@ -50,5 +53,9 @@ function toPlatform(platform: PlatformDtoWire): Platform {
 }
 
 function toStationLine(line: StationLineDtoWire): StationLine {
-  return { id: line.id, code: line.code, name: line.name }
+  if (!isLineColour(line.color)) {
+    throw invalidResponse(`Line ${line.code} has no valid colour.`)
+  }
+
+  return { id: line.id, code: line.code, color: line.color, name: line.name }
 }

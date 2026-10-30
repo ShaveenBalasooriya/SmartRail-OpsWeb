@@ -13,7 +13,7 @@ const stations: Station[] = [
       { id: 'pl-kandy-2', stationId: 'st-kandy', number: '2' },
       { id: 'pl-kandy-1a', stationId: 'st-kandy', number: '1A' },
     ],
-    lines: [{ id: 'ln-main', code: 'KDY', name: 'Main Line' }],
+    lines: [{ id: 'ln-main', code: 'KDY', color: '#0f766e', name: 'Main Line' }],
   },
   {
     id: 'st-galle',
