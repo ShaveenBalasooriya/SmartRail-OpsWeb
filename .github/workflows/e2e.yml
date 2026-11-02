@@ -1,0 +1,100 @@
+name: End-to-end
+
+# The OpsWeb browser tests (Playwright) against the real API. They sign in with minted tokens, so no
+# Authentik is needed: the suite starts its own mock identity provider, a throwaway Postgres container,
+# the API from SmartRail-API and this app, on its own ports (SmartRail-QA/browser/stack).
+#
+# The suite lives in the SmartRail-QA repository and finds the other two as sibling folders, so the
+# three repositories are checked out side by side under the workspace.
+on:
+  pull_request:
+    branches: [dev]
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  playwright:
+    name: Playwright against the real API
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out OpsWeb
+        uses: actions/checkout@v4
+        with:
+          path: SmartRail-OpsWeb
+
+      - name: Check out the API
+        uses: actions/checkout@v4
+        with:
+          repository: ShaveenBalasooriya/SmartRail-API
+          ref: dev
+          path: SmartRail-API
+
+      - name: Check out the QA tests
+        uses: actions/checkout@v4
+        with:
+          repository: ShaveenBalasooriya/SmartRail-QA
+          ref: main
+          path: SmartRail-QA
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: SmartRail-API/global.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            SmartRail-OpsWeb/package-lock.json
+            SmartRail-QA/browser/package-lock.json
+
+      - name: Install OpsWeb
+        working-directory: SmartRail-OpsWeb
+        run: npm ci
+
+      - name: Install the test project
+        working-directory: SmartRail-QA/browser
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: SmartRail-QA/browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the end-to-end tests
+        # Builds and starts everything, runs the specs, and stops it again. Every test is recorded.
+        working-directory: SmartRail-QA/browser
+        run: npm run test:e2e
+
+      - name: Upload the report, videos and traces
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-e2e
+          path: |
+            SmartRail-QA/browser/playwright-report-e2e
+            SmartRail-QA/browser/test-results-e2e
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload the stack logs
+        # The API, the database and the dev server write their output here; read it when a run fails.
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: stack-logs
+          path: SmartRail-QA/browser/.stack
+          retention-days: 14
+          if-no-files-found: ignore
