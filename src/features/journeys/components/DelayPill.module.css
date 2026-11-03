@@ -1,0 +1,26 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.late {
+  background: var(--platform-change-bg);
+  color: var(--platform-change-text);
+}
+
+.early {
+  background: var(--early-bg);
+  color: var(--early-text);
+}
+
+.onTime {
+  background: var(--highlight-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}

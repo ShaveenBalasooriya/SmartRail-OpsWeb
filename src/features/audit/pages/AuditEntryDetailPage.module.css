@@ -1,0 +1,91 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.back {
+  align-self: flex-start;
+  font-size: var(--text-sm);
+}
+
+.title {
+  font-size: var(--text-xl);
+}
+
+/* The journey detail's details card, so the two read views share one language. */
+.details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.item dt {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.item dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.item time {
+  font-variant-numeric: tabular-nums;
+}
+
+/* A hash is long and unbreakable; it wraps inside its card instead of widening the page. */
+.mono {
+  font-family: ui-monospace, 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Before and after sit side by side when there is room, each as a readable block of its own. */
+.changeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.jsonSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.sectionTitle {
+  font-size: var(--text-lg);
+}
+
+.json {
+  margin: 0;
+  padding: 1rem;
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  background: var(--highlight-subtle);
+  color: var(--text-primary);
+  font-family: ui-monospace, 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

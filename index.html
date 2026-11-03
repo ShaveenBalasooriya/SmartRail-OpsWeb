@@ -4,7 +4,40 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>smartrail-opsweb</title>
+    <title>SmartRail Operations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    />
+    <!--
+      Runs before the first paint so the stored or OS-preferred theme and motion are on <html> before
+      React mounts. Without it the page would flash light, then switch to dark. It mirrors
+      src/shared/preferences/appearance.ts; keep the storage keys and allow-lists in sync with it.
+    -->
+    <script>
+      (function () {
+        var root = document.documentElement;
+        function stored(key, allowed) {
+          try {
+            var value = localStorage.getItem(key);
+            return allowed.indexOf(value) !== -1 ? value : null;
+          } catch (error) {
+            return null;
+          }
+        }
+        function prefers(query) {
+          return typeof window.matchMedia === 'function' && window.matchMedia(query).matches;
+        }
+        root.dataset.theme =
+          stored('smartrail.theme', ['light', 'dark']) ||
+          (prefers('(prefers-color-scheme: dark)') ? 'dark' : 'light');
+        root.dataset.motion =
+          stored('smartrail.motion', ['full', 'reduced']) ||
+          (prefers('(prefers-reduced-motion: reduce)') ? 'reduced' : 'full');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
